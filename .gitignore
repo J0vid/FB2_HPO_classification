@@ -1,9 +1,12 @@
+# DS_Store
+.DS_Store
+
 # History files
 .Rhistory
 .Rapp.history
 
-# Session Data files
-.RData
+# Data files
+*.RData
 
 # User-specific files
 .Ruserdata
@@ -37,3 +40,16 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Scans
+*.ply
+*.obj
+
+# Folders to ignore for now
+**/Classification_demo_legacy
+**/lms
+**/Realtime_classification
+**/scans
+
+# hpo data
+*.tab
