@@ -12,8 +12,12 @@ library(plotly)
 
 # load("Classification_demo_legacy/demo_objects.Rdata")
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
-# save(atlas, d.meta, front.face, PC.eigenvectors, PC.scores, synd.mshape, phenotype.df, hpo, hpo.pos, hdrda.mod, hdrda.df, official.names, file = "data.Rdata")
-load("data.Rdata")
+# save(atlas, d.meta, front.face, PC.eigenvectors, PC.scores, synd.mshape, phenotype.df.synd, hpo, hpo.pos, hdrda.mod, hdrda.df, official.names, file = "data_combined.Rdata")
+# load("data.Rdata")
+load("data_combined.Rdata")
+
+
+
 official.names[1] <- "Non-syndromic"
 
 #when someone selects specific terms, find the omims/syndrome name in hpo.pos
@@ -37,7 +41,7 @@ updated.priors[in.hpo == T] <- .95 / length(official.names[in.hpo == T])
 
 hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
 
-posterior.distribution <- predict(hdrda.updated, newdata = hdrda.df[which(d.meta$Syndrome == "Nager Syndrome"),-1], type = "prob")$post[1,]
+posterior.distribution <- predict(hdrda.updated, newdata = hdrda.df[which(d.meta$Syndrome == "Nager Syndrome"),-1], type = "prob")$post[3,]
 
 View(predict(hdrda.updated, newdata = hdrda.df[which(d.meta$Syndrome == "Nager Syndrome"),-1], type = "prob")$post)
 predict(hdrda.updated, newdata = hdrda.df[which(d.meta$Syndrome == "Nager Syndrome"),-1], type = "prob")$class
@@ -57,90 +61,6 @@ plot_ly(data = plot.df, x = ~Syndrome, y = ~Probs, type = "bar", color = I("grey
          margin = list(b = 125, l = 50, r = 100)
   )
 
-#testing the method with one HPO term at a time, assuming equal prevelance####
-#for all the people with syndrome i, let's look at the sensitivity with HPO term j
-#how to deal with differing number of terms for each synd? Save only the mean top1,3,10 sens and the min/max, and the number of HPO terms associated
-
-hpo.perf <- matrix(NA, nrow = length(unique(hdrda.df$synd)), ncol = 10)
-colnames(hpo.perf) <- c("top1.mean", "top3.mean","top10.mean", "top1.min", "top3.min", "top10.min", "top1.max", "top3.max", "top10.max", "N.hpo")
-
-for(i in 1 : length(unique(hdrda.df$synd))){
-  #how many hpo terms are associated with the syndrome?
-  hpo.perf[i,10] <- length(unique(hpo.pos[hpo.pos$V3 == official.names[i],5]))
-  tmp.means <- rep(NA,  hpo.perf[i,10])
-  
-  for(j in 1 : hpo.perf[i,10]){
-    
-    #make vector to store performance for each term
-    for(k in 1:length(in.hpo)) in.hpo[k] <- length(grep(official.names[k], x = hpo.pos[hpo.pos[,5] == unique(hpo.pos[hpo.pos$V3 == official.names[i],5])[j],3])) > 0
-    
-    in.hpo[official.names == "Non-syndromic"] <- TRUE
-    
-    #priors are adjusted to uniformly sharing 10% for each syndrome not in the selected HPO, the rest of the weight is uniform with the remaining syndromes in the HPO list
-    updated.priors <- rep(NA, length(official.names))
-    names(updated.priors) <- official.names
-    
-    updated.priors[in.hpo == F] <- 0.1 / length(official.names[in.hpo == F])
-    updated.priors[in.hpo == T] <- 0.9 / length(official.names[in.hpo == T])
-    
-    #round updated.priors to avoid floating point error in summing to 1
-    tryCatch({
-      updated.priors <- round(updated.priors, digits = 15)
-      updated.priors <- updated.priors/sum(updated.priors)
-      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
-    },  error = function(e){
-      print("Error, trying with different rounding precision")
-      tryCatch({ updated.priors <- round(updated.priors, digits = 10)
-      updated.priors <- updated.priors/sum(updated.priors)
-      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)}, error = function(e){
-        print("Really, R? Two rounding precision errors?!?!")
-        
-        updated.priors <- round(updated.priors, digits = 9)
-        updated.priors <- updated.priors/sum(updated.priors)
-        hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
-        })
-   
-    })
-    
-    posterior.distribution <- predict(hdrda.updated, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$post
-    
-    posterior.class <- predict(hdrda.updated, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$class
-    
-    tmp.gs <- hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i], 1]
-    levels(tmp.gs) <- levels(posterior.class)
-    
-    print(paste0(unique(hdrda.df$synd)[i], ": term ", j, " out of ", hpo.perf[i,10], "-- mean: ", round(confusionMatrix(posterior.class, factor(tmp.gs, levels = levels(posterior.class)))$byClass[i,1], digits = 3)))
-    
-    tmp.means[j] <- confusionMatrix(posterior.class, factor(tmp.gs, levels = levels(posterior.class)))$byClass[i,1]
-    
-  }
-  
-  hpo.perf[i,1] <- mean(tmp.means)
-  hpo.perf[i,4] <- min(tmp.means)
-  hpo.perf[i,7] <- max(tmp.means)
-  
-  
-}
-
-#plot result####
-original.sens <- c(.666, .5, .16666, .47, .75, .482, .772, .477, .59, .43, .8, .5, .55, .58, .68, .61, .82, .056, .138, .48, .28, .31, .55,.124,.28,.34,.21,.519,.64,.08,.96,.45,.35,.25,.5,.56,.1, .17, .88, .47, .48, .4,.22,.68,.333,.22,.61,.53,.54,.47,.64,.59)
-hpo.df <- data.frame(Syndrome = levels(hdrda.df$synd), orig.sens = original.sens, hpo.perf)
-
-ggplot(aes(x = reorder(Syndrome, -orig.sens), y = top1.mean), data = hpo.df) +
-  geom_bar(stat = "identity",  fill = "slategrey") + 
-  geom_errorbar(aes(ymin = top1.min, ymax = top1.max), width=.2,
-                position=position_dodge(.9)) +
-  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#0F084B") +
-  ylab("Sensitivity") +
-  xlab("Syndrome") +
-  # scale_colour_manual(name = "Classification /n approach", values=c("#0F084B", "slategrey"), labels = c("Shape only", "With HPO")) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
-        plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
-
-
-
 #can we incorporate frequencies?####
 for(i in 1 : length(unique(hdrda.df$synd))){
   for(j in 1 : length(unique(hpo.pos[hpo.pos$V3 == official.names[i],5]))){
@@ -153,9 +73,8 @@ print(paste0(levels(hdrda.df$synd)[i], ": [", hpo$name[names(hpo$name) == hpo.te
 }
 
 #most frequencies are blank--what should we do? We could limit the analysis to only the syndromes and terms with frequency stats or we could simulate frequency...
-phenotype.df.synd <- phenotype.df[phenotype.df$DiseaseName %in% official.names,]
+# phenotype.df.synd <- phenotype.df[phenotype.df$DiseaseName %in% official.names,]
 View(phenotype.df.synd[is.na(phenotype.df.synd$Frequency) == F,])
-
 
 #only 26 syndromes have frequency data associated with HPO terms: unique(phenotype.df.synd[is.na(phenotype.df.synd$Frequency) == F, "DiseaseName"])
 #that tells me that we need to run a simulation on what it looks like if terms have any of the frequency hpo ranges
@@ -177,7 +96,7 @@ for(i in grep("%", standardized.freqs$Frequency)) standardized.freqs$Frequency[i
 View(standardized.freqs)
 
 #NAs are defined as obligate####
-standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- 1
+standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- .545
 
 #testing the method with one HPO term at a time with simulated term prevalence####
 #for all the people with syndrome i, let's look at the sensitivity with HPO term j
@@ -202,7 +121,7 @@ for(i in 1 : length(unique(hdrda.df$synd))){
     #get frequency of term with current syndrome####
     
     tmp.hpo.frequency <- as.numeric(standardized.freqs$Frequency[standardized.freqs$term == hpo.term][grep(official.names[i], standardized.freqs[standardized.freqs$term == hpo.term,1], ignore.case = T)])#what's the frequency of the selected term? phenotype.df$Frequency[phenotype.df$HPO_ID == hpo.term][grep(official.names[i], phenotype.df[phenotype.df$HPO_ID == hpo.term,2], ignore.case = T)]
-    if(length(tmp.hpo.frequency) == 0) tmp.hpo.frequency <- 1
+    if(length(tmp.hpo.frequency) == 0) tmp.hpo.frequency <- .545
     if(tmp.hpo.frequency > 0){
       #priors are adjusted to uniformly sharing 20% for each syndrome not in the selected HPO, the rest of the weight is uniform with the remaining syndromes in the HPO list
       
@@ -264,11 +183,19 @@ for(i in 1 : length(unique(hdrda.df$synd))){
   }
 }
 
-#plot result priors with simulated term prevalances####
-original.sens <- c(.666, .5, .16666, .47, .75, .482, .772, .477, .59, .43, .8, .5, .55, .58, .68, .61, .82, .056, .138, .48, .28, .31, .55,.124,.28,.34,.21,.519,.64,.08,.96,.45,.35,.25,.5,.56,.1, .17, .88, .47, .48, .4,.22,.68,.333,.22,.61,.53,.54,.47,.64,.59)
-hpo.df <- data.frame(Syndrome = levels(hdrda.df$synd), orig.sens = original.sens, hpo.perf)
+# save(synd.hpo.result, file = "hpo_results_NA_54_4.Rdata")
 
-ggplot(aes(x = reorder(Syndrome, -orig.sens), y = top1.mean), data = hpo.df) +
+#plot result priors with simulated term prevalances####
+hpo.perf <- synd.hpo.result %>%
+  group_by(synd) %>%
+  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
+
+hdrda.orig.preds <- predict(hdrda.mod, newdata = hdrda.df[,-1])$class
+original.sens <- confusionMatrix(hdrda.orig.preds, hdrda.df$synd)$byClass[,1]
+
+hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf$synd, levels(hdrda.df$synd))], hpo.perf)
+
+ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
   geom_bar(stat = "identity",  fill = "slategrey") + 
   geom_errorbar(aes(ymin = top1.min, ymax = top1.max), width=.2,
                 position=position_dodge(.9)) +
@@ -283,6 +210,39 @@ ggplot(aes(x = reorder(Syndrome, -orig.sens), y = top1.mean), data = hpo.df) +
 
 
 
+
+#plot result priors with varying simulated term prevalences####
+hpo.perf_1 <- synd.hpo.result_1 %>%
+  group_by(synd) %>%
+  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
+
+hpo.perf_5 <- synd.hpo.result_5 %>%
+  group_by(synd) %>%
+  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
+
+hpo.perf_25 <- synd.hpo.result_25 %>%
+  group_by(synd) %>%
+  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
+
+
+hdrda.orig.preds <- predict(hdrda.mod, newdata = hdrda.df[,-1])$class
+
+original.sens <- confusionMatrix(hdrda.orig.preds, hdrda.df$synd)$byClass[,1]
+
+hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf_1$synd, levels(hdrda.df$synd))], synd = hpo.perf_1$synd, mean1 = hpo.perf_1$top1.mean, mean5 = hpo.perf_5$top1.mean, mean25 = hpo.perf_25$top1.mean)
+
+ggplot(aes(x = reorder(synd, -orig.sens), y = mean1), data = hpo.df) +
+  geom_bar(stat = "identity",  fill = "#0F084B") + 
+  geom_bar(stat = "identity", aes(y = mean5), fill = "#6066AC", alpha = 1) +
+  geom_bar(stat = "identity", aes(y = mean25), fill = "#B0B5EF", alpha = 1) +
+  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#DFE1F9") +
+  ylab("Sensitivity") +
+  xlab("Syndrome") +
+  # scale_colour_manual(name = "Classification /n approach", values=c("#0F084B", "slategrey"), labels = c("Shape only", "With HPO")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
+        plot.background = element_rect(fill = "transparent"),
+        legend.position = "none")
 
 
 
