@@ -209,7 +209,10 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
         legend.position = "none")
 
 
+#drop non-informative HPO terms####
+View(data.frame(unique(synd.hpo.result$hpo.name)))
 
+bad.hpos <- c("Autosomal dominant inheritance", "X-linked dominant inheritance", "Autosomal recessive inheritance", "X-linked inheritance", "X-linked recessive inheritance", "Variable expressivity", "Stillbirth")
 
 #plot result priors with varying simulated term prevalences####
 hpo.perf_1 <- synd.hpo.result_1 %>%
@@ -230,22 +233,27 @@ hdrda.orig.preds <- predict(hdrda.mod, newdata = hdrda.df[,-1])$class
 original.sens <- confusionMatrix(hdrda.orig.preds, hdrda.df$synd)$byClass[,1]
 
 hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf_1$synd, levels(hdrda.df$synd))], synd = hpo.perf_1$synd, mean1 = hpo.perf_1$top1.mean, mean5 = hpo.perf_5$top1.mean, mean25 = hpo.perf_25$top1.mean)
+#DFE1F9
 
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean1), data = hpo.df) +
   geom_bar(stat = "identity",  fill = "#0F084B") + 
   geom_bar(stat = "identity", aes(y = mean5), fill = "#6066AC", alpha = 1) +
-  geom_bar(stat = "identity", aes(y = mean25), fill = "#B0B5EF", alpha = 1) +
-  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#DFE1F9") +
+  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#B0B5EF") +
   ylab("Sensitivity") +
   xlab("Syndrome") +
-  # scale_colour_manual(name = "Classification /n approach", values=c("#0F084B", "slategrey"), labels = c("Shape only", "With HPO")) +
+  scale_fill_manual(name = "Classification /n approach", values=c("#0F084B", "#6066AC", "#B0B5EF"), labels = c("With HPO - 100% prevalence", "With HPO - 50% prevalence", "Shape only")) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
         plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
+        legend.position = "bottom")
+
+#what insights can we glean about the utility of hpo terms?####
+#relationship between sensitivity and number of syndromes associated?
+#rank the differences in hpo sensitivity (top 10 most useful)
 
 
 
+#how bad is it to supply an incorrect term?####
 
 
 
