@@ -209,8 +209,9 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
         plot.background = element_rect(fill = "transparent"),
         legend.position = "none")
 
-
-
+#we should mark non-informative hpo terms
+View(data.frame(unique(synd.hpo.result$hpo.name)))
+bad.hpos <- c("Autosomal dominant inheritance", "X-linked dominant inheritance", "Autosomal recessive inheritance", "X-linked inheritance", "X-linked recessive inheritance", "Variable expressivity", "Stillbirth")
 
 #plot result priors with varying simulated term prevalences####
 hpo.perf_1 <- synd.hpo.result_1 %>%
@@ -245,8 +246,13 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = mean1), data = hpo.df) +
         plot.background = element_rect(fill = "transparent"),
         legend.position = "none")
 
+#what insights can we glean about the utility of hpo terms?####
+#relationship between sensitivity and number of syndromes associated?
+#rank the differences in hpo sensitivity (top 10 most useful)
 
 
+
+#how bad is it to supply an incorrect term?####
 
 
 
