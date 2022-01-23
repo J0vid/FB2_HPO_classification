@@ -1,6 +1,11 @@
 
 library(sparsediscrim)
 library(caret)
+
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+levels(hdrda.df$synd) <- levels(d.meta$Syndrome)
+in.hpo <- rep(NA, length(unique(hdrda.df$synd)))
+
 standardized.freqs <- data.frame(synd = phenotype.df.synd$DiseaseName, term = phenotype.df.synd$HPO_ID, Frequency = phenotype.df.synd$Frequency)
 standardized.freqs$Frequency <- as.character(standardized.freqs$Frequency)
 
@@ -64,13 +69,14 @@ for(i in 1 : length(unique(hdrda.df$synd))){
         
         hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
         
-        
         #calculate an index of which observations get the HPO term boost
         synd.count <- 1:nrow(hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],])
         updated.posterior.sample <- sample(synd.count, length(synd.count)*tmp.hpo.frequency)
         
         posterior.distribution <- predict(hdrda.updated, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$post
         orig.posterior.distribution <- predict(hdrda.mod, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$post
+        
+        #debug: View(data.frame(posterior.distribution[1,], orig.posterior.distribution[1,]))
         
         posterior.class <- predict(hdrda.updated, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$class
         levels.to.keep <- levels(posterior.class)
@@ -102,9 +108,10 @@ for(i in 1 : length(unique(hdrda.df$synd))){
     }
     
   }
+  save(synd.hpo.result, file = "adjusted_hpo_results_NA_1.Rdata")
 }
 
-save(synd.hpo.result, file = "hpo_results_NA_1.Rdata")
+save(synd.hpo.result, file = "adjusted_hpo_results_NA_1.Rdata")
 
 
 

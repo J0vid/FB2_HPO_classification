@@ -13,12 +13,13 @@ library(plotly)
 # load("Classification_demo_legacy/demo_objects.Rdata")
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 # save(atlas, d.meta, front.face, PC.eigenvectors, PC.scores, synd.mshape, phenotype.df.synd, hpo, hpo.pos, hdrda.mod, hdrda.df, official.names, file = "data_combined.Rdata")
+# save(age.sex.lm, atlas, d.meta, front.face, PC.eigenvectors, PC.scores, synd.mshape, phenotype.df.synd, hpo, hpo.pos, hdrda.mod, hdrda.df, official.names, file = "adjusted_data_combined.Rdata")
+
 # load("data.Rdata")
-load("data_combined.Rdata")
+load("adjusted_data_combined.Rdata")
 
-
-
-official.names[1] <- "Non-syndromic"
+# orig.preds <- (predict(hdrda.mod, hdrda.df[,-1]))
+# View(confusionMatrix(orig.preds$class, as.factor(hdrda.df[,1]))$byClass)
 
 #when someone selects specific terms, find the omims/syndrome name in hpo.pos
 print(hpo.pos[hpo.pos[,5] == names(hpo$name)[hpo$name == "Strabismus"],3])
@@ -226,8 +227,8 @@ hpo.perf_25 <- synd.hpo.result_25 %>%
 
 
 hdrda.orig.preds <- predict(hdrda.mod, newdata = hdrda.df[,-1])$class
-
-original.sens <- confusionMatrix(hdrda.orig.preds, hdrda.df$synd)$byClass[,1]
+levels(hdrda.orig.preds) <- levels(hdrda.df$synd)
+original.sens <- confusionMatrix(hdrda.orig.preds, as.factor(hdrda.df$synd))$byClass[,1]
 
 hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf_1$synd, levels(hdrda.df$synd))], synd = hpo.perf_1$synd, mean1 = hpo.perf_1$top1.mean, mean5 = hpo.perf_5$top1.mean, mean25 = hpo.perf_25$top1.mean)
 
