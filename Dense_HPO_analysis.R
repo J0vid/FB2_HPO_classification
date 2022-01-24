@@ -23,7 +23,7 @@ load("adjusted_data_combined.Rdata")
 #PC.scores <- adjusted.PC.scores
 
 # orig.preds <- (predict(hdrda.mod, hdrda.df[,-1]))
-# View(confusionMatrix(factor(loocv.pred[1:2800], levels = levels(hdrda.df$synd)), hdrda.df[1:2800,1])$byClass)
+# View(confusionMatrix(factor(loocv.pred, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass)
 
 
 #when someone selects specific terms, find the omims/syndrome name in hpo.pos
@@ -111,9 +111,10 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
         legend.position = "none")
 
 #we should mark non-informative hpo terms
+load("C:/Users/David A/Downloads/FB2_HPO_classification/hpo_results_NA_54_4.Rdata")
 View(data.frame(unique(synd.hpo.result$hpo.name)))
 bad.hpos <- c("Autosomal dominant inheritance", "X-linked dominant inheritance", "Autosomal recessive inheritance", "X-linked inheritance", "X-linked recessive inheritance", "Variable expressivity", "Stillbirth")
-
+synd.hpo.result_5 <- synd.hpo.result
 #plot result priors with varying simulated term prevalences####
 hpo.perf_1 <- synd.hpo.result_1 %>%
   group_by(synd) %>%
@@ -130,14 +131,15 @@ hpo.perf_25 <- synd.hpo.result_25 %>%
 
 hdrda.orig.preds <- predict(hdrda.mod, newdata = hdrda.df[,-1])$class
 levels(hdrda.orig.preds) <- levels(hdrda.df$synd)
-original.sens <- confusionMatrix(hdrda.orig.preds, as.factor(hdrda.df$synd))$byClass[,1]
+original.sens <- confusionMatrix(factor(loocv.pred, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
 
 hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf_1$synd, levels(hdrda.df$synd))], synd = hpo.perf_1$synd, mean1 = hpo.perf_1$top1.mean, mean5 = hpo.perf_5$top1.mean, mean25 = hpo.perf_25$top1.mean)
-
+hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf_5$synd, levels(hdrda.df$synd))], synd = hpo.perf_5$synd, mean1 = hpo.perf_5$top1.mean)
+View(hpo.df)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean1), data = hpo.df) +
   geom_bar(stat = "identity",  fill = "#0F084B") + 
-  geom_bar(stat = "identity", aes(y = mean5), fill = "#6066AC", alpha = 1) +
-  geom_bar(stat = "identity", aes(y = mean25), fill = "#B0B5EF", alpha = 1) +
+  # geom_bar(stat = "identity", aes(y = mean5), fill = "#6066AC", alpha = 1) +
+  # geom_bar(stat = "identity", aes(y = mean25), fill = "#B0B5EF", alpha = 1) +
   geom_bar(stat = "identity", aes(y = orig.sens), fill = "#DFE1F9") +
   ylab("Sensitivity") +
   xlab("Syndrome") +

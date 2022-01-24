@@ -3,6 +3,7 @@
 library(sparsediscrim)
 library(caret)
 
+# load("hpo_results_NA_54_4.Rdata")
 
 #only 26 syndromes have frequency data associated with HPO terms: unique(phenotype.df.synd[is.na(phenotype.df.synd$Frequency) == F, "DiseaseName"])
 #that tells me that we need to run a simulation on what it looks like if terms have any of the frequency hpo ranges
@@ -24,7 +25,7 @@ for(i in grep("%", standardized.freqs$Frequency)) standardized.freqs$Frequency[i
 View(standardized.freqs)
 
 #NAs are defined as obligate####
-standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- .545
+standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- 1
 
 #testing the method with one HPO term at a time with simulated term prevalence####
 #for all the people with syndrome i, let's look at the sensitivity with HPO term j
@@ -32,6 +33,9 @@ standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- .545
 
 hdrda.orig <- hdrda(synd ~ ., data = hdrda.df)
 synd.hpo.result <- NULL
+hpo.pred <- NULL
+hpo.distribution <- NULL
+hpo.meta <- NULL
 for(i in 1 : length(unique(hdrda.df$synd))){
   
   N.hpo <- length(unique(hpo.pos[hpo.pos$V3 == official.names[i],5]))
@@ -54,7 +58,7 @@ for(i in 1 : length(unique(hdrda.df$synd))){
       
       #get frequency of term with current syndrome####
       tmp.hpo.frequency <- as.numeric(standardized.freqs$Frequency[standardized.freqs$term == hpo.term][grep(official.names[i], standardized.freqs[standardized.freqs$term == hpo.term,1], ignore.case = T)])#what's the frequency of the selected term? phenotype.df$Frequency[phenotype.df$HPO_ID == hpo.term][grep(official.names[i], phenotype.df[phenotype.df$HPO_ID == hpo.term,2], ignore.case = T)]
-      if(length(tmp.hpo.frequency) == 0) tmp.hpo.frequency <- .545
+      if(length(tmp.hpo.frequency) == 0) tmp.hpo.frequency <- 1
       
       #priors are adjusted to uniformly sharing 20% for each syndrome not in the selected HPO, the rest of the weight is uniform with the remaining syndromes in the HPO list
       updated.priors <- rep(NA, length(official.names))
@@ -100,13 +104,16 @@ for(i in 1 : length(unique(hdrda.df$synd))){
       
       tmp.result <- data.frame(synd = levels(hdrda.df$synd)[i], hpo.id = hpo.term, hpo.name = tmp.hpo.name, sensitivity = confusionMatrix(posterior.class, tmp.gs)$byClass[which(levels(tmp.gs) == tmp.gs[1]),1])
       synd.hpo.result <- rbind.data.frame(synd.hpo.result, tmp.result)#, predicted.classes = t(sort(confusionMatrix(posterior.class, tmp.gs)$table[,which(official.names == official.names[i])], decreasing = T)[1:5])))
+      hpo.pred <- c(hpo.pred, as.character(posterior.class))
+      hpo.distribution <- rbind(hpo.distribution, posterior.distribution)
+      hpo.meta <- rbind(hpo.meta, cbind(as.character(rep(levels(hdrda.df$synd)[i], nrow(posterior.distribution))), rep(hpo.term, nrow(posterior.distribution)), rep(tmp.hpo.name, nrow(posterior.distribution))))
       
       print(tmp.result)
     }
     
   }
-  save(synd.hpo.result, file = "hpo_results_NA_54_4.Rdata")
+  save(synd.hpo.result, hpo.pred, hpo.distribution, hpo.meta, file = "hpo_results_loocv_full.Rdata")
 }
 
-save(synd.hpo.result, file = "hpo_results_NA_54_4.Rdata")
+save(synd.hpo.result, hpo.pred, hpo.distribution, hpo.meta, file = "hpo_results_loocv_full.Rdata")
 # 
