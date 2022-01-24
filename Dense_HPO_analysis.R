@@ -17,9 +17,14 @@ setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 
 # load("data.Rdata")
 load("adjusted_data_combined.Rdata")
+#load these in sequence to update database then save final combined.rdata file
+#load("combined_PCs.Rdata")
+#load("adjusted_PCs.Rdata")
+#PC.scores <- adjusted.PC.scores
 
 # orig.preds <- (predict(hdrda.mod, hdrda.df[,-1]))
-# View(confusionMatrix(orig.preds$class, as.factor(hdrda.df[,1]))$byClass)
+# View(confusionMatrix(factor(loocv.pred[1:1990], levels = levels(hdrda.df$synd)), hdrda.df[1:1990,1])$byClass)
+
 
 #when someone selects specific terms, find the omims/syndrome name in hpo.pos
 print(hpo.pos[hpo.pos[,5] == names(hpo$name)[hpo$name == "Strabismus"],3])
@@ -120,12 +125,10 @@ for(i in 1 : length(unique(hdrda.df$synd))){
     in.hpo[official.names == "Non-syndromic"] <- TRUE
 
     #get frequency of term with current syndrome####
-    
     tmp.hpo.frequency <- as.numeric(standardized.freqs$Frequency[standardized.freqs$term == hpo.term][grep(official.names[i], standardized.freqs[standardized.freqs$term == hpo.term,1], ignore.case = T)])#what's the frequency of the selected term? phenotype.df$Frequency[phenotype.df$HPO_ID == hpo.term][grep(official.names[i], phenotype.df[phenotype.df$HPO_ID == hpo.term,2], ignore.case = T)]
     if(length(tmp.hpo.frequency) == 0) tmp.hpo.frequency <- .545
-    if(tmp.hpo.frequency > 0){
+ 
       #priors are adjusted to uniformly sharing 20% for each syndrome not in the selected HPO, the rest of the weight is uniform with the remaining syndromes in the HPO list
-      
       updated.priors <- rep(NA, length(official.names))
       names(updated.priors) <- official.names
       
@@ -142,43 +145,35 @@ for(i in 1 : length(unique(hdrda.df$synd))){
         priorsequal1 <- sum(updated.priors)
       }
       
-      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
-      
-      
       #calculate an index of which observations get the HPO term boost
       synd.count <- 1:nrow(hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],])
-      updated.posterior.sample <- sample(synd.count, length(synd.count)*tmp.hpo.frequency)
       
-      posterior.distribution <- predict(hdrda.updated, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$post
-      orig.posterior.distribution <- predict(hdrda.mod, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$post
+      current.synd.index <- which(hdrda.df$synd == levels(hdrda.df$synd)[i])
+      updated.posterior.sample <- sample(current.synd.index, length(synd.count)*tmp.hpo.frequency)
       
-      posterior.class <- predict(hdrda.updated, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$class
-      levels.to.keep <- levels(posterior.class)
-      old.posterior.class <- predict(hdrda.orig, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")$class
+      #create matrices to store updated loocv preds
+      posterior.distribution <- loocv.post[hdrda.df$synd == levels(hdrda.df$synd)[i],]
+      posterior.class <- loocv.pred[hdrda.df$synd == levels(hdrda.df$synd)[i]]
       
-      posterior.class <- as.character(posterior.class)
-      old.posterior.class <- as.character(old.posterior.class)
+      for(l in 1:length(updated.posterior.sample)){ #only loop through selected inds
+      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df[-updated.posterior.sample[l],], prior = updated.priors)
+      tmp.updated.pred <- predict(hdrda.updated, newdata = hdrda.df[updated.posterior.sample[l],-1], type = "prob")
+      posterior.class[which(current.synd.index == updated.posterior.sample[l])] <- as.character(tmp.updated.pred$class)
+      posterior.distribution[which(current.synd.index == updated.posterior.sample[l]),] <- tmp.updated.pred$posterior
+      }
       
-      #merge simulated hpo data w/original data
-      posterior.distribution[-updated.posterior.sample,] <- orig.posterior.distribution[-updated.posterior.sample,]
-      posterior.class[-updated.posterior.sample] <- old.posterior.class[-updated.posterior.sample]
+      # View(posterior.distribution)
       
-      posterior.class <- factor(posterior.class, levels = levels.to.keep)
+      posterior.class <- factor(posterior.class, levels = levels(hdrda.df$synd))
       tmp.gs <- factor((hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i], 1]), levels = levels(posterior.class))
-    } else {
-      
-      posterior.distribution <- predict(hdrda.mod, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1], type = "prob")
-      posterior.class <- predict(hdrda.mod, newdata = hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i],-1])$class
-      tmp.gs <- factor((hdrda.df[hdrda.df$synd == levels(hdrda.df$synd)[i], 1]), levels = levels(posterior.class))
-    }
     
     #what information do I want to keep about this synd * term combination? syndrome, term name, identifier, Sensitivity, first 5 rows of the mistaken table?
     if(length(hpo$name[names(hpo$name) == hpo.term]) == 0) tmp.hpo.name <- "NO NAME" else{tmp.hpo.name <- hpo$name[names(hpo$name) == hpo.term]}
-    tmp.result <- data.frame(synd = levels(hdrda.df$synd)[i], hpo.id = hpo.term, hpo.name = tmp.hpo.name, sensitivity = confusionMatrix(posterior.class, tmp.gs)$byClass[which(levels(tmp.gs) == tmp.gs[1]),1])
+    
+      tmp.result <- data.frame(synd = levels(hdrda.df$synd)[i], hpo.id = hpo.term, hpo.name = tmp.hpo.name, sensitivity = confusionMatrix(posterior.class, tmp.gs)$byClass[which(levels(tmp.gs) == tmp.gs[1]),1])
     synd.hpo.result <- rbind.data.frame(synd.hpo.result, tmp.result)#, predicted.classes = t(sort(confusionMatrix(posterior.class, tmp.gs)$table[,which(official.names == official.names[i])], decreasing = T)[1:5])))
     
     print(tmp.result)
-    
   }
   
   }
