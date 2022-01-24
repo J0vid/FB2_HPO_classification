@@ -21,7 +21,7 @@ for(i in grep("/", standardized.freqs$Frequency)) standardized.freqs$Frequency[i
 for(i in grep("%", standardized.freqs$Frequency)) standardized.freqs$Frequency[i] <- as.numeric(substr(standardized.freqs$Frequency[i], 1, nchar(standardized.freqs$Frequency[i])-1))/100
 
 #NAs are defined as obligate####
-na.prevalence <- 1
+na.prevalence <- .545
 standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- na.prevalence
 
 #testing the method with one HPO term at a time with simulated term prevalence####
@@ -108,10 +108,10 @@ for(i in 1 : length(unique(hdrda.df$synd))){
     }
     
   }
-  save(synd.hpo.result, file = "adjusted_hpo_results_NA_1.Rdata")
+  save(synd.hpo.result, file = "full_hpo_results_NA_545.Rdata")
 }
 
-save(synd.hpo.result, file = "adjusted_hpo_results_NA_1.Rdata")
+save(synd.hpo.result, file = "full_hpo_results_NA_545.Rdata")
 
 
 
