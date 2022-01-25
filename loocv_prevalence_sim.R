@@ -3,7 +3,7 @@
 library(sparsediscrim)
 library(caret)
 
-# load("hpo_results_NA_54_4.Rdata")
+load("hpo_results_loocv_full.Rdata")
 
 #only 26 syndromes have frequency data associated with HPO terms: unique(phenotype.df.synd[is.na(phenotype.df.synd$Frequency) == F, "DiseaseName"])
 #that tells me that we need to run a simulation on what it looks like if terms have any of the frequency hpo ranges
@@ -22,7 +22,7 @@ for(i in grep("/", standardized.freqs$Frequency)) standardized.freqs$Frequency[i
 #deal with percentages
 for(i in grep("%", standardized.freqs$Frequency)) standardized.freqs$Frequency[i] <- as.numeric(substr(standardized.freqs$Frequency[i], 1, nchar(standardized.freqs$Frequency[i])-1))/100
 
-View(standardized.freqs)
+# View(standardized.freqs)
 
 #NAs are defined as obligate####
 standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- 1
@@ -32,11 +32,11 @@ standardized.freqs$Frequency[is.na(standardized.freqs$Frequency)] <- 1
 #how to deal with differing number of terms for each synd? Save only the mean top1,3,10 sens and the min/max, and the number of HPO terms associated
 
 hdrda.orig <- hdrda(synd ~ ., data = hdrda.df)
-synd.hpo.result <- NULL
-hpo.pred <- NULL
-hpo.distribution <- NULL
-hpo.meta <- NULL
-for(i in 1 : length(unique(hdrda.df$synd))){
+# synd.hpo.result <- NULL
+# hpo.pred <- NULL
+# hpo.distribution <- NULL
+# hpo.meta <- NULL
+for(i in 19 : length(unique(hdrda.df$synd))){
   
   N.hpo <- length(unique(hpo.pos[hpo.pos$V3 == official.names[i],5]))
   # N.hpo <- length(unique(standardized.freqs$term[standardized.freqs$synd == official.names[i]]))

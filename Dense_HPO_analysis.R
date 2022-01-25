@@ -153,7 +153,83 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = mean1), data = hpo.df) +
 #relationship between sensitivity and number of syndromes associated?
 #rank the differences in hpo sensitivity (top 10 most useful)
 
+#for TC, how does the hist oF TC posteriors change with term priors?####
+load("C:/Users/David A/Downloads/FB2_HPO_classification/hpo_results_loocv_full.Rdata")
 
+#demonstrative syndromes: Marfan Syndrome, Kabuki Syndrome
+selected.synd <- "Stickler Syndrome"
+  
+hist.df <- data.frame(term = hpo.meta[hpo.meta[,1] == selected.synd,3], X1 =  hpo.distribution[hpo.meta[,1] == selected.synd, which(levels(hdrda.df$synd) == selected.synd)])
+hist.df <- rbind.data.frame(data.frame(term = "No term", X1 = loocv.post[hdrda.df$synd == selected.synd, which(levels(hdrda.df$synd) == selected.synd)]),
+hist.df)
+
+hist.df$term <- factor(hist.df$term, levels = c("No term", unique(hist.df$term)[unique(hist.df$term) != "No term"]))
+
+ggplot(aes(x = X1, y = ..density..), data = hist.df) +
+  geom_histogram(bins = 10) +
+  xlab(paste0("Posterior values for ", selected.synd)) +
+  ylab("Frequency") +
+  theme_bw() +
+  facet_wrap(term ~ ., strip.position = "top")
+
+#the trouble with this visualization is that it doesn't convey the increase in confidence for the true syndrome
+selected.synd <- "Stickler Syndrome"
+
+hist.df <- data.frame(term = hpo.meta[hpo.meta[,1] == selected.synd,3], X1 =  hpo.distribution[hpo.meta[,1] == selected.synd, c(1,which(levels(hdrda.df$synd) == selected.synd))])
+hist.df <- rbind.data.frame(data.frame(term = "No term", X1 = loocv.post[hdrda.df$synd == selected.synd, c(1,which(levels(hdrda.df$synd) == selected.synd))]),
+                            hist.df)
+
+hist.df$term <- factor(hist.df$term, levels = c("No term", unique(hist.df$term)[unique(hist.df$term) != "No term"]))
+
+colnames(hist.df)[2:3] <- c("Non-syndromic", selected.synd)
+
+melt.df <- reshape2::melt(hist.df, id = "term")
+
+ggplot(aes(x = value, y = ..density..), data = melt.df) +
+  geom_histogram(bins = 10) +
+  xlab(paste0("Posterior values for ", selected.synd)) +
+  ylab("Frequency") +
+  theme_bw() +
+  facet_wrap(~ term + variable, strip.position = "top")
+
+#as a boxplot without melting
+selected.synd <- "Stickler Syndrome"
+
+hist.df <- data.frame(term = hpo.meta[hpo.meta[,1] == selected.synd,3], X1 =  hpo.distribution[hpo.meta[,1] == selected.synd, which(levels(hdrda.df$synd) == selected.synd)])
+hist.df <- rbind.data.frame(data.frame(term = "No term", X1 = loocv.post[hdrda.df$synd == selected.synd, which(levels(hdrda.df$synd) == selected.synd)]),
+                            hist.df)
+
+hist.df$term <- factor(hist.df$term, levels = c("No term", unique(hist.df$term)[unique(hist.df$term) != "No term"]))
+
+ggplot(aes(x = term, y = X1), data = hist.df) +
+  geom_violin() +
+  ylab(paste0("Posterior values for ", selected.synd)) +
+  xlab("HPO term") +
+  theme_bw()
+
+# delta violin
+#subtract no term from every term
+selected.synd <- "Achondroplasia"
+
+hist.df <- data.frame(term = hpo.meta[hpo.meta[,1] == selected.synd,3], X1 =  hpo.distribution[hpo.meta[,1] == selected.synd,])
+no.term.df <- data.frame(X1 = loocv.post[hdrda.df$synd == selected.synd, ])
+
+delta.df <- NULL
+for(i in 1:length(unique(hist.df$term))) delta.df <- rbind(delta.df, hist.df[hist.df$term == unique(hist.df$term)[i], -1] - no.term.df[,])
+
+pred.colors <- c(paste0("Not ", selected.synd), selected.synd)[1 + (hpo.pred[hpo.meta[,1] == selected.synd] == selected.synd)]
+delta.df <- data.frame(term = hist.df$term, posterior = delta.df[, which(levels(hdrda.df$synd) == selected.synd)], correct.pred = pred.colors)
+
+ggplot(aes(x = term, y = posterior), data = delta.df) +
+  geom_jitter(aes(colour = correct.pred), alpha = 1, cex = 2, width = 0.25) +
+  scale_colour_manual(name = "Prediction", values = c("red", "black")) +
+  ylab(paste0("Change in posterior values for ", selected.synd)) +
+  xlab("HPO term") +
+  ylim(-.2,1) +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 35, hjust = 1))
+
+#for a given syndrome, how much does the term change top 1,5,10 preds
 
 #how bad is it to supply an incorrect term?####
 
