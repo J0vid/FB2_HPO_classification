@@ -87,7 +87,7 @@ load("hpo_results_NA_54_4.Rdata")
 load("full_hpo_results_NA_545.Rdata")
 
 
-#plot result priors with simulated term prevalances####
+#plot result priors with simulated term prevalences####
 hpo.perf <- synd.hpo.result %>%
   group_by(synd) %>%
   summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
@@ -207,9 +207,9 @@ ggplot(aes(x = term, y = X1), data = hist.df) +
   xlab("HPO term") +
   theme_bw()
 
-# delta violin
+# delta plot for each term####
 #subtract no term from every term
-selected.synd <- "Achondroplasia"
+selected.synd <- "Zellweger Syndrome"
 
 hist.df <- data.frame(term = hpo.meta[hpo.meta[,1] == selected.synd,3], X1 =  hpo.distribution[hpo.meta[,1] == selected.synd,])
 no.term.df <- data.frame(X1 = loocv.post[hdrda.df$synd == selected.synd, ])
@@ -220,16 +220,167 @@ for(i in 1:length(unique(hist.df$term))) delta.df <- rbind(delta.df, hist.df[his
 pred.colors <- c(paste0("Not ", selected.synd), selected.synd)[1 + (hpo.pred[hpo.meta[,1] == selected.synd] == selected.synd)]
 delta.df <- data.frame(term = hist.df$term, posterior = delta.df[, which(levels(hdrda.df$synd) == selected.synd)], correct.pred = pred.colors)
 
+pdf("results/individual_term_changes_zellweger.pdf", width = 12, height = 8)
 ggplot(aes(x = term, y = posterior), data = delta.df) +
   geom_jitter(aes(colour = correct.pred), alpha = 1, cex = 2, width = 0.25) +
   scale_colour_manual(name = "Prediction", values = c("red", "black")) +
   ylab(paste0("Change in posterior values for ", selected.synd)) +
   xlab("HPO term") +
-  ylim(-.2,1) +
+  # ylim(-.2,1) +
   theme_bw() + 
   theme(axis.text.x = element_text(angle = 35, hjust = 1))
+dev.off()
 
-#for a given syndrome, how much does the term change top 1,5,10 preds
+#for a given syndrome, how much does the term change top 1,5,10 preds####
+#compare top 1 sensitivity####
+#error bars####
+hpo.perf <- synd.hpo.result %>%
+  group_by(synd) %>%
+  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
+
+
+original.sens <- confusionMatrix(factor(loocv.pred, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
+hpo.perf.full <- hpo.perf[match(levels(hdrda.df$synd), as.data.frame(hpo.perf[,1])$synd), ]
+hpo.perf.full[,1] <- levels(hdrda.df$synd)
+
+
+hpo.df <- data.frame(orig.sens = original.sens, hpo.perf.full)
+
+fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
+
+pdf("results/top1comparison_full.pdf", width = 12, height = 8)
+ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
+  geom_bar(stat = "identity",  fill = "#3D60A7") + 
+  geom_errorbar(aes(ymin = top1.min, ymax = top1.max)) +
+  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#0F084B") +
+  ylab("Sensitivity") +
+  xlab("Syndrome") +
+  scale_colour_manual(name = "Classification /n approach", values=c("#0F084B", "slategrey"), labels = c("Shape only", "With HPO")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
+        plot.background = element_rect(fill = "transparent"),
+        legend.position = "none")
+
+dev.off()
+
+#no error bars and mixed prevalences####
+#simulate prevalences by randomly mixing in hpo and non-hpo preds####
+#for each syndrome, for each term 
+colnames(hpo.distribution) <- levels(hdrda.df$synd)
+ultimate.bunduru <- data.frame(hpo.meta, pred = hpo.pred, hpo.distribution)
+colnames(ultimate.bunduru)[1:3] <- c("synd", "hpo.id", "hpo.term")
+
+permuted.results <- matrix(NA, nrow = nrow(ultimate.bunduru), ncol = 1000)
+
+for(k in 1:1000){
+  sim.synd.hpo.results <- NULL
+for(i in 1:length(unique(ultimate.bunduru$synd))){
+  tmp.terms <- unique(ultimate.bunduru$hpo.term[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i]])
+  for(j in 1:length(unique(tmp.terms))){
+    #grab synd i, term j and simulate .5 hpo term prevalence
+    tmp.hpo.pred <- ultimate.bunduru$pred[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j]]
+    tmp.prevalence <- sample(1:length(tmp.hpo.pred), length(tmp.hpo.pred) * .5)
+    tmp.hpo.pred[tmp.prevalence] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
+    sim.synd.hpo.results <- c(sim.synd.hpo.results, tmp.hpo.pred)
+  }
+
+}
+  permuted.results[,k] <- sim.synd.hpo.results
+  print(k)
+}
+
+#bind permuted.results with true synd
+
+permuted.sens <- apply(permuted.results, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
+permuted.mean <- apply(permuted.sens, 1, mean)
+permuted.sd  <- apply(permuted.sens, 1, sd)
+permuted.max  <- apply(permuted.sens, 1, max)
+permuted.min  <- apply(permuted.sens, 1, min)
+
+
+hpo.df <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens, mean = permuted.mean, sd = permuted.sd, max = permuted.max, min = permuted.min)
+
+fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
+
+pdf("results/top1comparison_prevalence.pdf", width = 12, height = 8)
+ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df) +
+  geom_bar(stat = "identity", fill = "#3D60A7") + 
+  geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
+  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#0F084B") +
+  ylab("Sensitivity") +
+  xlab("Syndrome") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
+        plot.background = element_rect(fill = "transparent"),
+        legend.position = "none")
+
+dev.off()
+
+
+
+
+
+
+model.stack <- interpolated.hdrda.class
+model.probs <- interpolated.hdrda.pred
+top1sens <- confusionMatrix(interpolated.hdrda.class, class.labels)$byClass[,1]
+top1acc <- confusionMatrix(interpolated.hdrda.class, class.labels)$byClass[,11]
+rank2 = 3
+rank3 = 10
+top5.check <- rep(NA, length(class.labels))
+for(i in 1: length(class.labels)){
+  if(sum(names(sort(model.probs[i,], decreasing = T)[1:rank2]) == class.labels[i]) > 0){
+    top5.check[i] <- as.character(class.labels[i])
+  } else{top5.check[i] <- names(sort(model.probs[i,], decreasing = T)[1])}
+}
+#top 10
+top10.check <- rep(NA, length(class.labels))
+for(i in 1: length(class.labels)){
+  if(sum(names(sort(model.probs[i,], decreasing = T)[1:rank3]) == class.labels[i]) > 0){
+    top10.check[i] <- as.character(class.labels[i])
+  } else{top10.check[i] <- names(sort(model.probs[i,], decreasing = T)[1])}
+}
+top5sens <- confusionMatrix(as.factor(top5.check), as.factor(class.labels))$byClass[,1]
+top10sens <- confusionMatrix(as.factor(top10.check), as.factor(class.labels))$byClass[,1]
+top5acc <- confusionMatrix(as.factor(top5.check), as.factor(class.labels))$byClass[,11]
+top10acc <- confusionMatrix(as.factor(top10.check), as.factor(class.labels))$byClass[,11]
+9:35
+zz <- cbind(top1sens, top5sens - top1sens, top10sens - top5sens)
+yy <- zz[order(zz[,1], decreasing = T),]          # order by bb
+yy <- cbind(id=1:nrow(yy),syndrome=substr(row.names(yy), start = 8, stop = 150L),yy)    # add an id column; will need later
+#remelt the dataframe
+model.rank.sens <- rbind(cbind(as.numeric(yy[,3]), 1),
+                         cbind(as.numeric(yy[,4]), rank2),
+                         cbind(as.numeric(yy[,5]), rank3)
+)
+model.rank.sens <- data.frame(id = rep(yy[,1],3), model.rank.sens, syndrome = as.factor(yy[,2]))
+model.rank.sens[,3] <- as.factor(model.rank.sens[,3])
+model.rank.sens[,1] <- factor(model.rank.sens[,1], levels = yy[,1])
+colnames(model.rank.sens)[2:3] <- c("sensuracy", "rank")
+model.rank.sens$syndrome <- gsub("X", "", as.character(model.rank.sens$syndrome))
+model.rank.sens$syndrome[model.rank.sens$syndrome == "-Linked Hypohidrotic Ectodermal Dysplasia"] <- "XHLED"
+model.rank.sens$syndrome[model.rank.sens$syndrome == "Fragile."] <- "Fragile.X"
+model.rank.sens$syndrome[model.rank.sens$syndrome == "YY"] <- "XXYY"
+model.rank.sens$syndrome[model.rank.sens$syndrome == ""] <- "XXX"
+model.rank.sens$syndrome[model.rank.sens$syndrome == "22q.11.2.Del"] <- "22q11_2.Del"
+model.rank.sens$syndrome[model.rank.sens$syndrome == "Osteogenesis.Imperfecta"] <- "OIM"
+model.rank.sens$syndrome[model.rank.sens$syndrome == "Rhizomelic.Chondro.Punctata"] <- "Rhizo Chondro Punct"
+fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
+pdf(file = "~/Downloads/sorted__HDRDA_sensitivity_n5_syndrome_atlas_Males.pdf", width = 10, height = 5*1.05)
+#png(filename = "/mnt/Hallgrimsson/Users/Jovid/FB2_ML/reveal_presentation/images/LOOCV_HDRDA_sensitivity.png", width = 2000, height = 1000)
+ggplot() +
+  geom_bar(aes(y = sensuracy, x = id, fill = rank), data = model.rank.sens, stat="identity",  position = position_stack(reverse = T))  +
+  #geom_hline(yintercept = .7, color = 2) +
+  xlab("Syndrome") +
+  ylab("Sensitivity") +
+  scale_x_discrete(labels = gsub("\\.", " ", model.rank.sens$syndrome)) +
+  scale_fill_manual("Rank", values=fill, labels = c("Top choice", "Within top 3", "Within top 10")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = .5, size = 8.5),
+        plot.background = element_rect(fill = "transparent"),
+        legend.position = "none")
+#theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = .5, size = 24.5), axis.title=element_text(size=27,face="bold"), legend.title=element_text(size=25, face="bold"), legend.text=element_text(size=25), legend.key.size =  unit(0.4, "in"))
+dev.off()
 
 #how bad is it to supply an incorrect term?####
 
