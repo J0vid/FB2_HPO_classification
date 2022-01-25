@@ -255,7 +255,7 @@ hpo.df <- data.frame(orig.sens = original.sens, hpo.perf.full)
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top1comparison_full.pdf", width = 12, height = 8)
+pdf("results/top1comparison_full.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
   geom_bar(stat = "identity",  fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = top1.min, ymax = top1.max)) +
@@ -307,7 +307,7 @@ hpo.df <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens, me
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top1comparison_prevalence.pdf", width = 12, height = 8)
+pdf("results/top1comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -323,6 +323,25 @@ dev.off()
 
 #redo sim checking top 3 posterior probabilities####
 #simulate prevalences by randomly mixing in hpo and non-hpo preds####
+
+#rank2 for original model####
+rank2 <- 3
+rank2.result <- loocv.pred
+for(i in 1:length(unique(hdrda.df$synd))){
+  tmp.hpo.post <- loocv.post[hdrda.df$synd == levels(hdrda.df$synd)[i],]
+  tmp.hpo.pred <-loocv.pred[hdrda.df$synd == levels(hdrda.df$synd)[i]]
+  rank2.check <- rep(NA, nrow(tmp.hpo.post))
+  for(l in 1: length(rank2.check)){
+    if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank2] == levels(hdrda.df$synd)[i]) > 0){
+      rank2.check[l] <- as.character(levels(hdrda.df$synd)[i])
+    } else{rank2.check[l] <- tmp.hpo.pred[l]}
+  }
+  rank2.result[hdrda.df$synd == levels(hdrda.df$synd)[i]] <- rank2.check
+}
+face.only.rank2 <- rank2.result
+
+original.sens.rank2 <-  confusionMatrix(factor(rank2.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
+
 #for each syndrome, for each term 
 colnames(hpo.distribution) <- levels(hdrda.df$synd)
 ultimate.bunduru <- data.frame(hpo.meta, pred = hpo.pred, hpo.distribution)
@@ -346,7 +365,7 @@ for(k in 1:1000){
       }
       
       tmp.prevalence <- sample(1:length(rank2.check), length(rank2.check) * .5)
-      rank2.check[tmp.prevalence] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
+      rank2.check[tmp.prevalence] <- face.only.rank2[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
       sim.synd.hpo.results <- c(sim.synd.hpo.results, rank2.check)
     }
   }
@@ -362,27 +381,13 @@ permuted.sd3  <- apply(permuted.sens, 1, sd)
 permuted.max3  <- apply(permuted.sens, 1, max)
 permuted.min3  <- apply(permuted.sens, 1, min)
 
-#rank2 for original model####
-rank2 <- 3
-rank2.result <- loocv.pred
-for(i in 1:length(unique(hdrda.df$synd))){
-  tmp.hpo.post <- loocv.post[hdrda.df$synd == levels(hdrda.df$synd)[i],]
-  tmp.hpo.pred <-loocv.pred[hdrda.df$synd == levels(hdrda.df$synd)[i]]
-  rank2.check <- rep(NA, nrow(tmp.hpo.post))
-for(l in 1: length(rank2.check)){
-  if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank2] == levels(hdrda.df$synd)[i]) > 0){
-    rank2.check[l] <- as.character(levels(hdrda.df$synd)[i])
-  } else{rank2.check[l] <- tmp.hpo.pred[l]}
-}
-  rank2.result[hdrda.df$synd == levels(hdrda.df$synd)[i]] <- rank2.check
-}
-
-original.sens.rank2 <-  confusionMatrix(factor(rank2.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
 hpo.df3 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = permuted.mean3, sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
+hpo.df3 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = top10_half_prev[,1], sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
+
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top3comparison_prevalence.pdf", width = 12, height = 8)
+pdf("results/top3comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df3) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -399,6 +404,29 @@ dev.off()
 
 #redo sim checking top 10 posterior probabilities####
 #simulate prevalences by randomly mixing in hpo and non-hpo preds####
+#rank3 for original model####
+rank3 <- 10
+rank3.result <- loocv.pred
+
+colnames(loocv.post) <- levels(hdrda.df$synd)
+
+for(i in 1:length(unique(hdrda.df$synd))){
+  tmp.hpo.post <- loocv.post[hdrda.df$synd == levels(hdrda.df$synd)[i],]
+  tmp.hpo.pred <-loocv.pred[hdrda.df$synd == levels(hdrda.df$synd)[i]]
+  rank3.check <- rep(NA, nrow(tmp.hpo.post))
+  for(l in 1: length(rank3.check)){
+    if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank3] == levels(hdrda.df$synd)[i]) > 0){
+      rank3.check[l] <- as.character(levels(hdrda.df$synd)[i])
+    } else{rank3.check[l] <- tmp.hpo.pred[l]}
+    # print(l)
+    # print(tmp.hpo.post[l,order(tmp.hpo.post[l,], decreasing = T)][1:rank3])
+  }
+  rank3.result[hdrda.df$synd == levels(hdrda.df$synd)[i]] <- rank3.check
+}
+face.only.rank3 <- rank3.result
+
+original.sens.rank3 <-  confusionMatrix(factor(rank3.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
+
 #for each syndrome, for each term 
 colnames(hpo.distribution) <- levels(hdrda.df$synd)
 ultimate.bunduru <- data.frame(hpo.meta, pred = hpo.pred, hpo.distribution)
@@ -419,10 +447,13 @@ for(k in 1:1000){
         if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank3] == unique(ultimate.bunduru$synd)[i]) > 0){
           rank3.check[l] <- as.character(unique(ultimate.bunduru$synd)[i])
         } else{rank3.check[l] <- names(sort(tmp.hpo.post[l,], decreasing = T)[1])}
+        # print(l)
+        # print(unique(ultimate.bunduru$synd)[i])
+        # print(tmp.hpo.post[l,order(tmp.hpo.post[l,], decreasing = T)][1:rank3])
       }
       
       tmp.prevalence <- sample(1:length(rank3.check), length(rank3.check) * .5)
-      rank3.check[tmp.prevalence] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
+      rank3.check[tmp.prevalence] <- face.only.rank3[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
       sim.synd.hpo.results <- c(sim.synd.hpo.results, rank3.check)
     }
     
@@ -434,32 +465,19 @@ for(k in 1:1000){
 #bind permuted.results with true synd
 permuted.results.rank3 <- permuted.results
 permuted.sens10 <- apply(permuted.results.rank3, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
-permuted.mean10 <- apply(permuted.sens, 1, mean)
-permuted.sd10  <- apply(permuted.sens, 1, sd)
-permuted.max10  <- apply(permuted.sens, 1, max)
-permuted.min10  <- apply(permuted.sens, 1, min)
+permuted.mean10 <- apply(permuted.sens10, 1, mean)
+permuted.sd10  <- apply(permuted.sens10, 1, sd)
+permuted.max10  <- apply(permuted.sens10, 1, max)
+permuted.min10  <- apply(permuted.sens10, 1, min)
 
-#rank3 for original model####
-rank3 <- 3
-rank3.result <- loocv.pred
-for(i in 1:length(unique(hdrda.df$synd))){
-  tmp.hpo.post <- loocv.post[hdrda.df$synd == levels(hdrda.df$synd)[i],]
-  tmp.hpo.pred <-loocv.pred[hdrda.df$synd == levels(hdrda.df$synd)[i]]
-  rank3.check <- rep(NA, nrow(tmp.hpo.post))
-  for(l in 1: length(rank3.check)){
-    if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank3] == levels(hdrda.df$synd)[i]) > 0){
-      rank3.check[l] <- as.character(levels(hdrda.df$synd)[i])
-    } else{rank3.check[l] <- tmp.hpo.pred[l]}
-  }
-  rank3.result[hdrda.df$synd == levels(hdrda.df$synd)[i]] <- rank3.check
-}
-
-original.sens.rank3 <-  confusionMatrix(factor(rank3.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
+#compare to rank2: View(data.frame(permuted.mean3, permuted.mean10))
 hpo.df10 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank3, mean = permuted.mean10, sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
+
+hpo.df10 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank3, mean = top10_half_prev[,1], sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top10comparison_prevalence.pdf", width = 12, height = 8)
+pdf("results/top10comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df10) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -473,8 +491,12 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df10) +
 
 dev.off()
 
+#save out all permuted results####
+# save(permuted.results, permuted.results.rank2, permuted.results.rank3, file = "permuted_results_ranked_plots.Rdata")
 
 
+#put it all together
+# hpo.df, hpo.df3, hpo.df10
 
 
 #how bad is it to supply an incorrect term?####
