@@ -209,7 +209,8 @@ ggplot(aes(x = term, y = X1), data = hist.df) +
 
 # delta plot for each term####
 #subtract no term from every term
-selected.synd <- "Zellweger Syndrome"
+for(j in 1:length(unique(hpo.meta[,1]))){
+selected.synd <- unique(hpo.meta[,1])[j]
 
 hist.df <- data.frame(term = hpo.meta[hpo.meta[,1] == selected.synd,3], X1 =  hpo.distribution[hpo.meta[,1] == selected.synd,])
 no.term.df <- data.frame(X1 = loocv.post[hdrda.df$synd == selected.synd, ])
@@ -220,16 +221,20 @@ for(i in 1:length(unique(hist.df$term))) delta.df <- rbind(delta.df, hist.df[his
 pred.colors <- c(paste0("Not ", selected.synd), selected.synd)[1 + (hpo.pred[hpo.meta[,1] == selected.synd] == selected.synd)]
 delta.df <- data.frame(term = hist.df$term, posterior = delta.df[, which(levels(hdrda.df$synd) == selected.synd)], correct.pred = pred.colors)
 
-pdf("results/individual_term_changes_zellweger.pdf", width = 12, height = 8)
-ggplot(aes(x = term, y = posterior), data = delta.df) +
+pdf(paste0("results/ind_diffs/individual_term_changes_", gsub(pattern = "/", replacement = "_", selected.synd), ".pdf"), width = 9, height = 5)
+p <- ggplot(aes(x = term, y = posterior), data = delta.df) +
   geom_jitter(aes(colour = correct.pred), alpha = 1, cex = 2, width = 0.25) +
   scale_colour_manual(name = "Prediction", values = c("red", "black")) +
   ylab(paste0("Change in posterior values for ", selected.synd)) +
   xlab("HPO term") +
-  # ylim(-.2,1) +
+  ylim(-.5,1) +
   theme_bw() + 
   theme(axis.text.x = element_text(angle = 35, hjust = 1))
+print(p)
 dev.off()
+
+print(j)
+}
 
 #for a given syndrome, how much does the term change top 1,5,10 preds####
 #compare top 1 sensitivity####
@@ -316,7 +321,84 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df) +
 
 dev.off()
 
+#redo sim checking top 3 posterior probabilities
+#simulate prevalences by randomly mixing in hpo and non-hpo preds####
+#for each syndrome, for each term 
+colnames(hpo.distribution) <- levels(hdrda.df$synd)
+ultimate.bunduru <- data.frame(hpo.meta, pred = hpo.pred, hpo.distribution)
+colnames(ultimate.bunduru)[1:3] <- c("synd", "hpo.id", "hpo.term")
 
+permuted.results <- matrix(NA, nrow = nrow(ultimate.bunduru), ncol = 1000)
+
+for(k in 1:1000){
+  sim.synd.hpo.results <- NULL
+  for(i in 1:length(unique(ultimate.bunduru$synd))){
+    tmp.terms <- unique(ultimate.bunduru$hpo.term[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i]])
+    for(j in 1:length(unique(tmp.terms))){
+      #grab synd i, term j posteriors and check top 3 posteriors. Then simulate .5 hpo term prevalence
+      tmp.hpo.post <- ultimate.bunduru[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j], -1:-4]
+      rank2 <- 3
+      rank2.check <- rep(NA, nrow(tmp.hpo.post))
+      for(l in 1: length(rank2.check)){
+        if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank2] == unique(ultimate.bunduru$synd)[i]) > 0){
+          rank2.check[l] <- as.character(unique(ultimate.bunduru$synd)[i])
+        } else{rank2.check[l] <- names(sort(tmp.hpo.post[l,], decreasing = T)[1])}
+      }
+      
+      tmp.prevalence <- sample(1:length(rank2.check), length(rank2.check) * .5)
+      rank2.check[tmp.prevalence] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
+      sim.synd.hpo.results <- c(sim.synd.hpo.results, rank2.check)
+    }
+    
+  }
+  permuted.results[,k] <- sim.synd.hpo.results
+  print(k)
+}
+
+#bind permuted.results with true synd
+permuted.results.rank2 <- permuted.results
+permuted.sens <- apply(permuted.results.rank2, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
+permuted.mean <- apply(permuted.sens, 1, mean)
+permuted.sd  <- apply(permuted.sens, 1, sd)
+permuted.max  <- apply(permuted.sens, 1, max)
+permuted.min  <- apply(permuted.sens, 1, min)
+
+#rank2 for original model####
+rank2 <- 3
+rank2.result <- loocv.pred
+for(i in 1:length(unique(hdrda.df$synd))){
+  tmp.hpo.post <- loocv.post[hdrda.df$synd == levels(hdrda.df$synd)[i],]
+  tmp.hpo.pred <-loocv.pred[hdrda.df$synd == levels(hdrda.df$synd)[i]]
+  rank2.check <- rep(NA, nrow(tmp.hpo.post))
+for(l in 1: length(rank2.check)){
+  if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank2] == levels(hdrda.df$synd)[i]) > 0){
+    rank2.check[l] <- as.character(levels(hdrda.df$synd)[i])
+  } else{rank2.check[l] <- tmp.hpo.pred[l]}
+}
+  rank2.result[hdrda.df$synd == levels(hdrda.df$synd)[i]] <- rank2.check
+}
+
+original.sens.rank2 <-  confusionMatrix(factor(rank2.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
+hpo.df <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = permuted.mean, sd = permuted.sd, max = permuted.max, min = permuted.min)
+
+fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
+
+pdf("results/top3comparison_prevalence.pdf", width = 12, height = 8)
+ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df) +
+  geom_bar(stat = "identity", fill = "#3D60A7") + 
+  geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
+  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#0F084B") +
+  ylab("Sensitivity") +
+  xlab("Syndrome") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
+        plot.background = element_rect(fill = "transparent"),
+        legend.position = "none")
+
+dev.off()
+
+
+#redo sim checking top 10 posterior probabilities
 
 
 
@@ -381,6 +463,7 @@ ggplot() +
         legend.position = "none")
 #theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = .5, size = 24.5), axis.title=element_text(size=27,face="bold"), legend.title=element_text(size=25, face="bold"), legend.text=element_text(size=25), legend.key.size =  unit(0.4, "in"))
 dev.off()
+
 
 #how bad is it to supply an incorrect term?####
 
