@@ -497,8 +497,25 @@ dev.off()
 
 #put it all together
 # hpo.df, hpo.df3, hpo.df10
+hpo.df.combo <- data.frame(synd = hpo.df$synd, rank1 = hpo.df$mean, rank2 = hpo.df3$mean, rank3 = hpo.df10$mean)
+# well need to fuse in the original values for synds without terms
+hpo.df.combo$rank1[which(is.na(hpo.df.combo$rank1))] <- hpo.df$orig.sens[which(is.na(hpo.df.combo$rank1))]
+hpo.df.combo$rank2[which(is.na(hpo.df.combo$rank2))] <- hpo.df3$orig.sens[which(is.na(hpo.df.combo$rank2))]
+hpo.df.combo$rank3[which(is.na(hpo.df.combo$rank3))] <- hpo.df10$orig.sens[which(is.na(hpo.df.combo$rank3))]
+View(hpo.df.combo)
 
-
+pdf("results/top1_3_10_prevalence.pdf", width = 12, height = 6)
+ggplot(aes(x = reorder(synd, -rank1), y = rank3), data = hpo.df.combo) +
+  geom_bar(fill =  "#A0D2E7", stat = "identity") +
+  geom_bar(aes(x = synd, y = rank2), fill = "#3D60A7", stat = "identity") +
+  geom_bar(aes(x = synd, y = rank1), fill = "#0F084B", stat = "identity") +
+  ylab("Sensitivity") +
+  xlab("Syndrome") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
+        plot.background = element_rect(fill = "transparent"),
+        legend.position = "none")
+dev.off()
 #how bad is it to supply an incorrect term?####
 
 
