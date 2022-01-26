@@ -223,15 +223,15 @@ for(j in 1:length(unique(hpo.meta[,1]))){
   pred.colors <- c(paste0("Not ", selected.synd), selected.synd)[1 + (hpo.pred[hpo.meta[,1] == selected.synd] == selected.synd)]
   delta.df <- data.frame(term = hist.df$term, posterior = delta.df[, which(levels(hdrda.df$synd) == selected.synd)], correct.pred = pred.colors)
   
-  pdf(paste0("results/ind_diffs/individual_term_changes_", gsub(pattern = "/", replacement = "_", selected.synd), ".pdf"), width = 10, height = 7)
+  pdf(paste0("results/ind_diffs/individual_term_changes_", gsub(pattern = "/", replacement = "_", selected.synd), ".pdf"), width = 8.5, height = 4.5)
   p <- ggplot(aes(x = term, y = posterior), data = delta.df) +
     geom_jitter(aes(colour = correct.pred), alpha = 1, cex = 2, width = 0.25) +
     scale_colour_manual(name = "Prediction", values = c("red", "black")) +
-    ylab(paste0("Change in posterior values for ", selected.synd)) +
+    ylab(paste0("Change in posterior values for \n", selected.synd)) +
     xlab("HPO term") +
     ylim(-.5,1) +
     theme_bw() + 
-    theme(axis.text.x = element_text(angle = 35, hjust = 1))
+    theme(axis.text.x = element_text(angle = 65, hjust = 1, size = 12))
   print(p)
   dev.off()
   
@@ -375,14 +375,15 @@ for(k in 1:1000){
 
 #bind permuted.results with true synd
 permuted.results.rank2 <- permuted.results
+load("C:/Users/David A/Downloads/FB2_HPO_classification/permuted_results_rank2.Rdata")
 permuted.sens3 <- apply(permuted.results.rank2, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
-permuted.mean3 <- apply(permuted.sens, 1, mean)
-permuted.sd3  <- apply(permuted.sens, 1, sd)
-permuted.max3  <- apply(permuted.sens, 1, max)
-permuted.min3  <- apply(permuted.sens, 1, min)
+permuted.mean3 <- apply(permuted.sens3, 1, mean)
+permuted.sd3  <- apply(permuted.sens3, 1, sd)
+permuted.max3  <- apply(permuted.sens3, 1, max)
+permuted.min3  <- apply(permuted.sens3, 1, min)
 
 hpo.df3 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = permuted.mean3, sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
-hpo.df3 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = top10_half_prev[,1], sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
+#for checkpointing: hpo.df3 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = top10_half_prev[,1], sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
 
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
@@ -464,6 +465,7 @@ for(k in 1:1000){
 
 #bind permuted.results with true synd
 permuted.results.rank3 <- permuted.results
+load("C:/Users/David A/Downloads/FB2_HPO_classification/permuted_results_rank3.Rdata")
 permuted.sens10 <- apply(permuted.results.rank3, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
 permuted.mean10 <- apply(permuted.sens10, 1, mean)
 permuted.sd10  <- apply(permuted.sens10, 1, sd)
@@ -473,7 +475,7 @@ permuted.min10  <- apply(permuted.sens10, 1, min)
 #compare to rank2: View(data.frame(permuted.mean3, permuted.mean10))
 hpo.df10 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank3, mean = permuted.mean10, sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
 
-hpo.df10 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank3, mean = top10_half_prev[,1], sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
+#for checkpointing: hpo.df10 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank3, mean = top10_half_prev[,1], sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
