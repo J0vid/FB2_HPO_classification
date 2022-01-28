@@ -100,7 +100,7 @@ phenotype_2022 <- phenotype_2022[phenotype_2022$Aspect == "P", ]
 
 View(phenotype_2022[,c(1,2,4,8)])
 
-#no goldenhar, klinefelter,  in hpo?
+#no goldenhar, klinefelter, in hpo?
 official.names[official.names == "18p Tetrasomy"] <- "Tetrasomy 18p"
 official.names[official.names == "XXYY"] <- "48,XXYY syndrome"
 official.names[official.names == "XXX"] <- "Trisomy X" 
