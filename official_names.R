@@ -9,6 +9,7 @@ official.names <- levels(hdrda.df$synd)
 
 # hdrda.df$synd[hdrda.df$synd == "Cleft_Lip_Palate"] <- "CLEFT LIP/PALATE"
 #no 18p tetrasomy, goldenhar, klinefelter, xxyy, xxx, Trisomy 13,  in hpo?
+#OMIM names####
 official.names[official.names == "1p36 Deletion"] <- "CHROMOSOME 1P36 DELETION SYNDROME"
 official.names[official.names == "22q 11.2 Deletion Syndrome"] <- "CHROMOSOME 22q11.2 DELETION SYNDROME, DISTAL"
 official.names[official.names == "5p Deletion Cri du Chat"] <- "CRI-DU-CHAT SYNDROME"
@@ -86,3 +87,111 @@ official.names[official.names == "Zellweger Syndrome"] <- "PEROXISOME BIOGENESIS
 official.names[official.names == "Coffin-Lowry Syndrome"] <- "COFFIN-LOWRY SYNDROME; CLS"
 official.names[official.names == "Bardet-Biedl Syndrome"] <- "BARDET-BIEDL SYNDROME 1; BBS1"
 official.names[official.names == "Pallister-Killian Syndrome"] <- "PALLISTER-KILLIAN SYNDROME"
+
+
+#orpha names####
+official.names <- levels(hdrda.df$synd)
+
+#match to new HPO database to get better frequency info
+phenotype_2022 <- read_delim("phenotype-2022.hpoa", delim = "\t", escape_double = FALSE, trim_ws = TRUE, skip = 4)
+
+#cut down to only physical abnormalities
+phenotype_2022 <- phenotype_2022[phenotype_2022$Aspect == "P", ]
+
+View(phenotype_2022[,c(1,2,4,8)])
+
+#no goldenhar, klinefelter,  in hpo?
+official.names[official.names == "18p Tetrasomy"] <- "Tetrasomy 18p"
+official.names[official.names == "XXYY"] <- "48,XXYY syndrome"
+official.names[official.names == "XXX"] <- "Trisomy X" 
+official.names[official.names == "Trisomy 13"] <- "Trisomy 13" 
+official.names[official.names == "1p36 Deletion"] <- "Chromosome 1p36 deletion syndrome"
+official.names[official.names == "22q 11.2 Deletion Syndrome"] <- "Chromosome 22q11.2 deletion syndrome, distal"
+official.names[official.names == "5p Deletion Cri du Chat"] <- "Cri du Chat Syndrome (5p deletion)"
+official.names[official.names == "Achondroplasia"] <- "Achondroplasia"
+official.names[official.names == "Angelman Syndrome"] <- "Angelman syndrome"
+official.names[official.names == "Apert Syndrome"] <- "Apert syndrome"
+official.names[official.names == "Cardiofaciocutaneous Syndrome"] <- "Cardiofaciocutaneous syndrome"
+official.names[official.names == "CHARGE Syndrome"] <- "CHARGE syndrome"
+official.names[official.names == "Cleft Lip/Palate"] <- "Cleft lip/palate"
+official.names[official.names == "Cockayne Syndrome"] <- "Cockayne syndrome"
+official.names[official.names == "Coffin-Siris Syndrome"] <- "Coffin-Siris syndrome"
+official.names[official.names == "Cohen Syndrome"] <- "Cohen syndrome"
+official.names[official.names == "Cornelia de Lange Syndrome"] <- "Cornelia de Lange syndrome"
+official.names[official.names == "Costello Syndrome"] <- "Costello syndrome"
+official.names[official.names == "Crouzon Syndrome"] <- "Crouzon syndrome"
+official.names[official.names == "Down Syndrome"] <- "Down syndrome"
+official.names[official.names == "Ehlers Danlos Syndrome"] <- "Classical Ehlers-Danlos syndrome"
+official.names[official.names == "Fragile X"] <- "Fragile X syndrome"
+official.names[official.names == "Jacobsen Syndrome"] <- "Jacobsen syndrome"
+official.names[official.names == "Joubert Syndrome"] <- "Joubert syndrome"
+official.names[official.names == "Kabuki Syndrome"] <- "Kabuki syndrome"
+official.names[official.names == "Loeys-Dietz Syndrome"] <- "Loeys-Dietz syndrome"
+official.names[official.names == "Marfan Syndrome"] <- "Marfan syndrome"
+official.names[official.names == "Moebius Syndrome"] <- "Moebius syndrome"
+official.names[official.names == "Mucopolysaccharidosis"] <- "Mucopolysaccharidosis type 1"
+official.names[official.names == "Nager Syndrome"] <- "Nager syndrome"
+official.names[official.names == "Neurofibromatosis"] <- "Neurofibromatosis type 1"
+official.names[official.names == "Noonan Syndrome"] <- "Noonan syndrome"
+official.names[official.names == "Osteogenesis Imperfecta" | official.names == "Osteogenesis imperfecta"] <- "Osteogenesis imperfecta"
+official.names[official.names == "Phelan McDermid Syndrome"] <- "Phelan-Mcdermid syndrome"
+official.names[official.names == "Pierre Robin Sequence"] <- "Contractures-developmental delay-Pierre Robin syndrome"
+official.names[official.names == "Pitt-Hopkins Syndrome"] <- "Pitt-Hopkins syndrome"
+official.names[official.names == "Pseudoachondroplasia"] <- "Pseudoachondroplasia"
+official.names[official.names == "Rett Syndrome" | official.names == "Rett Syndrome_Other" | official.names == "Rett Syndrome_CDKL5"] <- "Rett syndrome"
+official.names[official.names == "Rhizomelic Chondrodysplasia Punctata"] <- "Rhizomelic chondrodysplasia punctata"
+official.names[official.names == "Rubinstein-Taybi Syndrome"] <- "Rubinstein-Taybi syndrome"
+official.names[official.names == "Russell Silver Syndrome"] <- "Silver-Russell syndrome"
+official.names[official.names == "Smith-Lemli-Opitz Syndrome"] <- "Smith-Lemli-Opitz syndrome"
+official.names[official.names == "Smith-Magenis Syndrome"] <- "Smith-Magenis syndrome"
+official.names[official.names == "Sotos Syndrome"] <- "Sotos syndrome"
+official.names[official.names == "Spondyloepiphyseal Dysplasia"] <- "Spondyloepiphyseal dysplasia congenita"
+official.names[official.names == "Stickler Syndrome"] <- "Stickler syndrome"
+official.names[official.names == "Treacher Collins Syndrome"] <- "Treacher-Collins syndrome"
+official.names[official.names == "Trisomy 18"] <- "Trisomy 18"
+official.names[official.names == "Turner Syndrome"] <- "Turner syndrome"
+official.names[official.names == "Van der Woude Syndrome"] <- "Van der Woude syndrome"
+official.names[official.names == "Williams-Beuren Syndrome"] <- "Williams syndrome"
+official.names[official.names == "X-Linked Hypohidrotic Ectodermal Dysplasia"] <- "X-linked hypohidrotic ectodermal dysplasia"
+official.names[official.names == "Craniofrontonasal Dysplasia"] <- "Craniofrontonasal dysplasia"
+official.names[official.names == "Muenke Syndrome"] <- "Muenke syndrome"
+official.names[official.names == "Craniosynostosis"] <- "Craniosynostosis and dental anomalies"
+official.names[official.names == "Pfeiffer Syndrome"] <- "Pfeiffer syndrome"
+official.names[official.names == "Ectodermal Dysplasia"] <- "Cranioectodermal dysplasia"
+official.names[official.names == "Autism Spectrum Disorder"] <- "Autism spectrum disorder due to AUTS2 deficiency"
+official.names[official.names == "Wolf-Hirschhorn syndrome"] <- "Wolf-Hirschhorn syndrome"
+official.names[official.names == "Simpson-Golabi-Behmel Syndrome"] <- "Simpson-Golabi-Behmel syndrome"
+official.names[official.names == "Microtia"] <- "Microtia"
+official.names[official.names == "Gaucher Disease"] <- "Gaucher disease"
+official.names[official.names == "Prader-Willi Syndrome"] <- "Prader-Willi syndrome"
+official.names[official.names == "Polycystic Kidney Disease"] <- "Autosomal recessive polycystic kidney disease"
+official.names[official.names == "Saethre-Chotzen Syndrome"] <- "Saethre-Chotzen syndrome"
+official.names[official.names == "Branchio-Oto-Renal Syndrome"] <- "Branchiootorenal syndrome 1"
+official.names[official.names == "Beckwith-Weidemann Syndrome"] <- "Beckwith-Wiedemann syndrome"
+official.names[official.names == "15q26.3 Deletion"] <- "Chromosome 15q26-qter deletion syndrome"
+official.names[official.names == "Diastrophic Dysplasia"] <- "Diastrophic dysplasia"
+official.names[official.names == "Ectrodactyly-Ectodermal Dysplasia-Cleft Lip/Palate"] <- "Ectrodactyly, ectodermal dysplasia, and cleft lip/palate syndrome1"
+official.names[official.names == "Goltz Syndrome"] <- "Focal dermal hypoplasia"
+official.names[official.names == "18p Deletion"] <- "Chromosome 18P deletion syndrome"
+official.names[official.names == "15q Duplication"] <- "Chromosome 15q11-q13 duplication syndrome"
+official.names[official.names == "Opitz GBBB Syndrome"] <- "Opitz GBBB syndrome"
+official.names[official.names == "Hemifacial Microsomia"] <- "Hemifacial microsomia"
+official.names[official.names == "Epileptic Encephalopathy Early Infantile Type 2"] <- "Early infantile epileptic encephalopathy"
+official.names[official.names == "Mowat-Wilson Syndrome"] <- "Mowat-Wilson syndrome"
+official.names[official.names == "Zellweger Syndrome"] <- "Zellweger syndrome"
+official.names[official.names == "Coffin-Lowry Syndrome"] <- "Coffin-Lowry syndrome"
+official.names[official.names == "Bardet-Biedl Syndrome"] <- "Bardet-Biedl syndrome"
+official.names[official.names == "Pallister-Killian Syndrome"] <- "Pallister-Killian syndrome"
+
+
+
+
+
+
+
+
+
+
+
+
+
