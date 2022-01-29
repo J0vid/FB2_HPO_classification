@@ -221,19 +221,34 @@ for(j in 1:length(unique(hpo.meta[,1]))){
   for(i in 1:length(unique(hist.df$term))) delta.df <- rbind(delta.df, hist.df[hist.df$term == unique(hist.df$term)[i], -1] - no.term.df[,])
   
   pred.colors <- c(paste0("Not ", selected.synd), selected.synd)[1 + (hpo.pred[hpo.meta[,1] == selected.synd] == selected.synd)]
+  pred.colors <- factor(pred.colors, levels = c(selected.synd, paste0("Not ", selected.synd)))
   delta.df <- data.frame(term = hist.df$term, posterior = delta.df[, which(levels(hdrda.df$synd) == selected.synd)], correct.pred = pred.colors)
   
   pdf(paste0("results/ind_diffs/individual_term_changes_", gsub(pattern = "/", replacement = "_", selected.synd), ".pdf"), width = 8.5, height = 4.5)
   p <- ggplot(aes(x = term, y = posterior), data = delta.df) +
-    geom_jitter(aes(colour = correct.pred), alpha = 1, cex = 2, width = 0.25) +
+    geom_jitter(aes(colour = correct.pred), alpha = 1, cex = 4, width = 0.25) +
     scale_colour_manual(name = "Prediction", values = c("red", "black")) +
-    ylab(paste0("Change in posterior values for \n", selected.synd)) +
-    xlab("HPO term") +
+    ylab(paste0("")) +
+    xlab("") +
     ylim(-.5,1) +
     theme_bw() + 
-    theme(axis.text.x = element_text(angle = 65, hjust = 1, size = 12))
+    theme(axis.text.x = element_text(angle = 35, hjust = 1, size = 17),
+          axis.text.y = element_text(size = 17),
+          axis.title.x = element_text(size = 17, face = "bold"),
+          axis.title.y = element_text(size = 17, face = "bold"),
+          legend.position = "none")
   print(p)
   dev.off()
+  
+  #x/ylabs for supplemental:
+  # ggtitle(paste0("Change in posterior values for ", selected.synd, "\n using HPO")) +
+  # ylab(paste0("Change in posterior")) +
+  #   xlab("HPO term") +
+  # theme(axis.text.x = element_text(angle = 35, hjust = 1, size = 17),
+  #       axis.text.y = element_text(size = 17),
+  #       axis.title.x = element_text(size = 17, face = "bold"),
+  #       axis.title.y = element_text(size = 17, face = "bold"),
+  #       legend.position = "top")
   
   print(j)
 }
@@ -440,7 +455,8 @@ ggplot(aes(x = reorder(synd, -rank1), y = rank3), data = hpo.df.combo) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
         plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
+        legend.position = "none") +
+  publication.theme
 dev.off()
 
 #by syndrome means
