@@ -80,73 +80,6 @@ print(paste0(levels(hdrda.df$synd)[i], ": [", hpo$name[names(hpo$name) == hpo.te
 # phenotype.df.synd <- phenotype.df[phenotype.df$DiseaseName %in% official.names,]
 View(phenotype.df.synd[is.na(phenotype.df.synd$Frequency) == F,])
 
-
-
-
-#plot result priors with simulated term prevalences####
-#outside of one-off examples, I have moved the all of the heavy computation out of this script and into job scripts. Visualization continues below.
-load("hpo_results_NA_54_4.Rdata")
-load("full_hpo_results_NA_545.Rdata") #pre-loocv results
-
-hpo.perf <- synd.hpo.result %>%
-  group_by(synd) %>%
-  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
-
-hdrda.orig.preds <- predict(hdrda.mod, newdata = hdrda.df[,-1])$class
-original.sens <- confusionMatrix(hdrda.orig.preds, hdrda.df$synd)$byClass[,1]
-
-hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf$synd, levels(hdrda.df$synd))], hpo.perf)
-
-ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
-  geom_bar(stat = "identity",  fill = "slategrey") + 
-  geom_errorbar(aes(ymin = top1.min, ymax = top1.max), width=.2, position=position_dodge(.9)) +
-  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#0F084B") +
-  ylab("Sensitivity") +
-  xlab("Syndrome") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
-        plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
-
-#we should mark non-informative hpo terms
-load("C:/Users/David A/Downloads/FB2_HPO_classification/hpo_results_NA_54_4.Rdata")
-View(data.frame(unique(synd.hpo.result$hpo.name)))
-bad.hpos <- c("Autosomal dominant inheritance", "X-linked dominant inheritance", "Autosomal recessive inheritance", "X-linked inheritance", "X-linked recessive inheritance", "Variable expressivity", "Stillbirth")
-synd.hpo.result_5 <- synd.hpo.result
-#plot result priors with varying simulated term prevalences####
-hpo.perf_1 <- synd.hpo.result_1 %>%
-  group_by(synd) %>%
-  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
-
-hpo.perf_5 <- synd.hpo.result_5 %>%
-  group_by(synd) %>%
-  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
-
-hpo.perf_25 <- synd.hpo.result_25 %>%
-  group_by(synd) %>%
-  summarise(top1.min = min(sensitivity), top1.max = max(sensitivity), top1.mean = mean(sensitivity))
-
-
-hdrda.orig.preds <- predict(hdrda.mod, newdata = hdrda.df[,-1])$class
-levels(hdrda.orig.preds) <- levels(hdrda.df$synd)
-original.sens <- confusionMatrix(factor(loocv.pred, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
-
-hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf_1$synd, levels(hdrda.df$synd))], synd = hpo.perf_1$synd, mean1 = hpo.perf_1$top1.mean, mean5 = hpo.perf_5$top1.mean, mean25 = hpo.perf_25$top1.mean)
-hpo.df <- data.frame(orig.sens = original.sens[match(hpo.perf_5$synd, levels(hdrda.df$synd))], synd = hpo.perf_5$synd, mean1 = hpo.perf_5$top1.mean)
-View(hpo.df)
-ggplot(aes(x = reorder(synd, -orig.sens), y = mean1), data = hpo.df) +
-  geom_bar(stat = "identity",  fill = "#0F084B") + 
-  # geom_bar(stat = "identity", aes(y = mean5), fill = "#6066AC", alpha = 1) +
-  # geom_bar(stat = "identity", aes(y = mean25), fill = "#B0B5EF", alpha = 1) +
-  geom_bar(stat = "identity", aes(y = orig.sens), fill = "#DFE1F9") +
-  ylab("Sensitivity") +
-  xlab("Syndrome") +
-  # scale_colour_manual(name = "Classification /n approach", values=c("#0F084B", "slategrey"), labels = c("Shape only", "With HPO")) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
-        plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
-
 #what insights can we glean about the utility of hpo terms?####
 #relationship between sensitivity and number of syndromes associated?
 #rank the differences in hpo sensitivity (top 10 most useful)
@@ -210,6 +143,7 @@ ggplot(aes(x = term, y = X1), data = hist.df) +
 # delta plot for each term####
 #shows change for each term for each individual AND if they were correctly classified
 #loop across all syndromes and save plot
+#delta plot main figs####
 for(j in 1:length(unique(hpo.meta[,1]))){
   #subtract no term from every term
   selected.synd <- unique(hpo.meta[,1])[j]
@@ -232,7 +166,7 @@ for(j in 1:length(unique(hpo.meta[,1]))){
     xlab("") +
     ylim(-.5,1) +
     theme_bw() + 
-    theme(axis.text.x = element_text(angle = 35, hjust = 1, size = 17),
+    theme(axis.text.x = element_text(angle = 25, hjust = .5, vjust = .55, size = 17),
           axis.text.y = element_text(size = 17),
           axis.title.x = element_text(size = 17, face = "bold"),
           axis.title.y = element_text(size = 17, face = "bold"),
@@ -252,6 +186,120 @@ for(j in 1:length(unique(hpo.meta[,1]))){
   
   print(j)
 }
+
+#delta plot supplemental fig####
+for(j in 1:length(unique(hpo.meta[,1]))){
+  #subtract no term from every term
+  selected.synd <- unique(hpo.meta[,1])[j]
+  
+  hist.df <- data.frame(term = hpo.meta[hpo.meta[,1] == selected.synd,3], X1 =  hpo.distribution[hpo.meta[,1] == selected.synd,])
+  no.term.df <- data.frame(X1 = loocv.post[hdrda.df$synd == selected.synd, ])
+  
+  delta.df <- NULL
+  for(i in 1:length(unique(hist.df$term))) delta.df <- rbind(delta.df, hist.df[hist.df$term == unique(hist.df$term)[i], -1] - no.term.df[,])
+  
+  pred.colors <- c(paste0("Not ", selected.synd), selected.synd)[1 + (hpo.pred[hpo.meta[,1] == selected.synd] == selected.synd)]
+  pred.colors <- factor(pred.colors, levels = c(selected.synd, paste0("Not ", selected.synd)))
+  delta.df <- data.frame(term = hist.df$term, posterior = delta.df[, which(levels(hdrda.df$synd) == selected.synd)], correct.pred = pred.colors)
+  
+  # pdf(paste0("results/ind_diffs/individual_term_changes_", gsub(pattern = "/", replacement = "_", selected.synd), ".pdf"), width = 8.5, height = 4.5)
+  assign(paste0("p", j), 
+         ggplotGrob(ggplot(aes(x = term, y = posterior), data = delta.df) +
+          geom_jitter(aes(colour = correct.pred), alpha = 1, cex = 2.5, width = 0.25) +
+          scale_colour_manual(name = "Prediction", values = c("red", "black")) +
+          ylab(paste0("")) +
+          xlab("") +
+          ylim(-.5,1) +
+          ggtitle(selected.synd) +
+          theme_bw() + 
+          theme(axis.text.x = element_text(angle = 25, hjust = .5, vjust = .55, size = 10.5),
+                axis.text.y = element_text(size = 14),
+                axis.title.x = element_text(size = 15, face = "bold"),
+                axis.title.y = element_text(size = 15, face = "bold"),
+                legend.position = "none")
+        )
+  )
+  # print(p)
+  # dev.off()
+  
+  #x/ylabs for supplemental:
+  # ggtitle(paste0("Change in posterior values for ", selected.synd, "\n using HPO")) +
+  # ylab(paste0("Change in posterior")) +
+  #   xlab("HPO term") +
+  # theme(axis.text.x = element_text(angle = 35, hjust = 1, size = 17),
+  #       axis.text.y = element_text(size = 17),
+  #       axis.title.x = element_text(size = 17, face = "bold"),
+  #       axis.title.y = element_text(size = 17, face = "bold"),
+  #       legend.position = "top")
+  
+  print(j)
+}
+
+#divide delta posterior results into 7 pages####
+pdf("results/supp1_pg1.pdf", height = 40, width = 8)
+p <- get(paste0("p", 1))
+for(i in 2:10) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
+
+pdf("results/supp1_pg2.pdf", height = 40, width = 8)
+p <- get(paste0("p", 11))
+for(i in 12:20) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
+
+pdf("results/supp1_pg3.pdf", height = 40, width = 8)
+p <- get(paste0("p", 21))
+for(i in 22:30) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
+
+pdf("results/supp1_pg4.pdf", height = 40, width = 8)
+p <- get(paste0("p", 31))
+for(i in 32:40) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
+
+
+pdf("results/supp1_pg5.pdf", height = 40, width = 8)
+p <- get(paste0("p", 41))
+for(i in 42:50) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
+
+pdf("results/supp1_pg6.pdf", height = 40, width = 8)
+p <- get(paste0("p", 51))
+for(i in 52:60) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
+
+pdf("results/supp1_pg7.pdf", height = 40, width = 8)
+p <- get(paste0("p", 61))
+for(i in 62:70) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
+
+pdf("results/supp1_pg8.pdf", height = 40, width = 8)
+p <- get(paste0("p", 71))
+for(i in 72:79) p <- rbind(p, get(paste0("p", i)), size = "first")
+p$widths <- unit.pmax(p1$widths)
+grid.newpage()
+grid.draw(p)
+dev.off()
 
 #for a given syndrome, how much does the term change top 1,5,10 preds####
 #compare top 1 sensitivity####
