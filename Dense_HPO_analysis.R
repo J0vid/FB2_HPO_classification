@@ -286,6 +286,7 @@ for(i in 1:length(unique(ultimate.bunduru$synd))){
   for(j in 1:length(unique(tmp.terms))){
     #grab synd i, term j and simulate .5 hpo term prevalence
     tmp.hpo.pred <- ultimate.bunduru$pred[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j]]
+    hpo.prevalence <- phenotype_2022$Frequency[phenotype_2022$HPO_ID == ultimate.bunduru$hpo.id[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j]][1]]
     tmp.prevalence <- sample(1:length(tmp.hpo.pred), length(tmp.hpo.pred) * .5)
     tmp.hpo.pred[tmp.prevalence] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
     sim.synd.hpo.results <- c(sim.synd.hpo.results, tmp.hpo.pred)
