@@ -270,33 +270,9 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
 
 dev.off()
 
-#no error bars and mixed prevalences####
-#simulate prevalences by randomly mixing in hpo and non-hpo preds####
-#for each syndrome, for each term 
-colnames(hpo.distribution) <- levels(hdrda.df$synd)
-ultimate.bunduru <- data.frame(hpo.meta, pred = hpo.pred, hpo.distribution)
-colnames(ultimate.bunduru)[1:3] <- c("synd", "hpo.id", "hpo.term")
-
-permuted.results <- matrix(NA, nrow = nrow(ultimate.bunduru), ncol = 1000)
-
-for(k in 1:1000){
-  sim.synd.hpo.results <- NULL
-for(i in 1:length(unique(ultimate.bunduru$synd))){
-  tmp.terms <- unique(ultimate.bunduru$hpo.term[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i]])
-  for(j in 1:length(unique(tmp.terms))){
-    #grab synd i, term j and simulate .5 hpo term prevalence
-    tmp.hpo.pred <- ultimate.bunduru$pred[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j]]
-    hpo.prevalence <- phenotype_2022$Frequency[phenotype_2022$HPO_ID == ultimate.bunduru$hpo.id[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j]][1]]
-    tmp.prevalence <- sample(1:length(tmp.hpo.pred), length(tmp.hpo.pred) * .5)
-    tmp.hpo.pred[tmp.prevalence] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
-    sim.synd.hpo.results <- c(sim.synd.hpo.results, tmp.hpo.pred)
-  }
-}
-  permuted.results[,k] <- sim.synd.hpo.results
-  print(k)
-}
-
+#error bars and mixed prevalences####
 #get mean max min sd of sensitivities from 1000 simulated analysis at 50% term prevalence
+load("updated_permuted_results_rank1.Rdata")
 permuted.sens <- apply(permuted.results, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
 permuted.mean <- apply(permuted.sens, 1, mean)
 permuted.sd  <- apply(permuted.sens, 1, sd)
@@ -304,11 +280,23 @@ permuted.max  <- apply(permuted.sens, 1, max)
 permuted.min  <- apply(permuted.sens, 1, min)
 
 #bind permuted.results with true synd
-hpo.df <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens, mean = permuted.mean, sd = permuted.sd, max = permuted.max, min = permuted.min)
+publication.synd.names <- levels(hdrda.df$synd)
+publication.synd.names <- gsub(" Syndrome", "", publication.synd.names)
+publication.synd.names <- gsub("deletion", "del", publication.synd.names)
+publication.synd.names <- gsub("Deletion", "del", publication.synd.names)
+publication.synd.names[publication.synd.names == "X-Linked Hypohidrotic Ectodermal Dysplasia"] <- "XLHED"
+publication.synd.names[publication.synd.names == "Ectrodactyly-Ectodermal Dysplasia-Cleft Lip/Palate"] <- "EEC"
+publication.synd.names[publication.synd.names == "Epileptic Encephalopathy Early Infantile Type 2"] <- "EIEE2"
+publication.synd.names[publication.synd.names == "Rhizomelic Chondrodysplasia Punctata"] <- "Rhizo Chond Punct"
+publication.synd.names <- gsub("Dysplasia", "dysp", publication.synd.names)
+
+publication.theme <- theme(axis.title = element_text(size = 16, face = "bold"), axis.text.y = element_text(size = 14), axis.text.x =  element_text(size = 12))
+
+hpo.df <- data.frame(synd = publication.synd.names, orig.sens = original.sens, mean = permuted.mean, sd = permuted.sd, max = permuted.max, min = permuted.min)
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top1comparison_prevalence.pdf", width = 12, height = 6)
+pdf("results/updated_top1comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -318,7 +306,8 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
         plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
+        legend.position = "none") +
+  publication.theme
 
 dev.off()
 
@@ -343,53 +332,22 @@ face.only.rank2 <- rank2.result
 
 original.sens.rank2 <-  confusionMatrix(factor(rank2.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
 
-#for each syndrome, for each term 
-colnames(hpo.distribution) <- levels(hdrda.df$synd)
-ultimate.bunduru <- data.frame(hpo.meta, pred = hpo.pred, hpo.distribution)
-colnames(ultimate.bunduru)[1:3] <- c("synd", "hpo.id", "hpo.term")
-
-permuted.results <- matrix(NA, nrow = nrow(ultimate.bunduru), ncol = 1000)
-
-for(k in 1:1000){
-  sim.synd.hpo.results <- NULL
-  for(i in 1:length(unique(ultimate.bunduru$synd))){
-    tmp.terms <- unique(ultimate.bunduru$hpo.term[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i]])
-    for(j in 1:length(unique(tmp.terms))){
-      #grab synd i, term j posteriors and check top 3 posteriors. Then simulate .5 hpo term prevalence
-      tmp.hpo.post <- ultimate.bunduru[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j], -1:-4]
-      rank2 <- 3
-      rank2.check <- rep(NA, nrow(tmp.hpo.post))
-      for(l in 1: length(rank2.check)){
-        if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank2] == unique(ultimate.bunduru$synd)[i]) > 0){
-          rank2.check[l] <- as.character(unique(ultimate.bunduru$synd)[i])
-        } else{rank2.check[l] <- names(sort(tmp.hpo.post[l,], decreasing = T)[1])}
-      }
-      
-      tmp.prevalence <- sample(1:length(rank2.check), length(rank2.check) * .5)
-      rank2.check[tmp.prevalence] <- face.only.rank2[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
-      sim.synd.hpo.results <- c(sim.synd.hpo.results, rank2.check)
-    }
-  }
-  permuted.results[,k] <- sim.synd.hpo.results
-  print(k)
-}
-
 #bind permuted.results with true synd
 permuted.results.rank2 <- permuted.results
-load("C:/Users/David A/Downloads/FB2_HPO_classification/permuted_results_rank2.Rdata")
+load("C:/Users/David A/Downloads/FB2_HPO_classification/updated_permuted_results_rank2.Rdata")
 permuted.sens3 <- apply(permuted.results.rank2, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
 permuted.mean3 <- apply(permuted.sens3, 1, mean)
 permuted.sd3  <- apply(permuted.sens3, 1, sd)
 permuted.max3  <- apply(permuted.sens3, 1, max)
 permuted.min3  <- apply(permuted.sens3, 1, min)
 
-hpo.df3 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = permuted.mean3, sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
+hpo.df3 <- data.frame(synd = publication.synd.names, orig.sens = original.sens.rank2, mean = permuted.mean3, sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
 #for checkpointing: hpo.df3 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank2, mean = top10_half_prev[,1], sd = permuted.sd3, max = permuted.max3, min = permuted.min3)
 
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top3comparison_prevalence.pdf", width = 12, height = 6)
+pdf("results/updated_top3comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df3) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -399,7 +357,8 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df3) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
         plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
+        legend.position = "none") +
+  publication.theme
 
 dev.off()
 
@@ -429,44 +388,8 @@ face.only.rank3 <- rank3.result
 
 original.sens.rank3 <-  confusionMatrix(factor(rank3.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
 
-#for each syndrome, for each term 
-colnames(hpo.distribution) <- levels(hdrda.df$synd)
-ultimate.bunduru <- data.frame(hpo.meta, pred = hpo.pred, hpo.distribution)
-colnames(ultimate.bunduru)[1:3] <- c("synd", "hpo.id", "hpo.term")
-
-permuted.results <- matrix(NA, nrow = nrow(ultimate.bunduru), ncol = 1000)
-
-for(k in 1:1000){
-  sim.synd.hpo.results <- NULL
-  for(i in 1:length(unique(ultimate.bunduru$synd))){
-    tmp.terms <- unique(ultimate.bunduru$hpo.term[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i]])
-    for(j in 1:length(unique(tmp.terms))){
-      #grab synd i, term j posteriors and check top 3 posteriors. Then simulate .5 hpo term prevalence
-      tmp.hpo.post <- ultimate.bunduru[ultimate.bunduru$synd == unique(ultimate.bunduru$synd)[i] & ultimate.bunduru$hpo.term == tmp.terms[j], -1:-4]
-      rank3 <- 10
-      rank3.check <- rep(NA, nrow(tmp.hpo.post))
-      for(l in 1: length(rank3.check)){
-        if(sum(levels(hdrda.df$synd)[order(tmp.hpo.post[l,], decreasing = T)][1:rank3] == unique(ultimate.bunduru$synd)[i]) > 0){
-          rank3.check[l] <- as.character(unique(ultimate.bunduru$synd)[i])
-        } else{rank3.check[l] <- names(sort(tmp.hpo.post[l,], decreasing = T)[1])}
-        # print(l)
-        # print(unique(ultimate.bunduru$synd)[i])
-        # print(tmp.hpo.post[l,order(tmp.hpo.post[l,], decreasing = T)][1:rank3])
-      }
-      
-      tmp.prevalence <- sample(1:length(rank3.check), length(rank3.check) * .5)
-      rank3.check[tmp.prevalence] <- face.only.rank3[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
-      sim.synd.hpo.results <- c(sim.synd.hpo.results, rank3.check)
-    }
-    
-  }
-  permuted.results[,k] <- sim.synd.hpo.results
-  print(k)
-}
-
 #bind permuted.results with true synd
-permuted.results.rank3 <- permuted.results
-load("C:/Users/David A/Downloads/FB2_HPO_classification/permuted_results_rank3.Rdata")
+load("C:/Users/David A/Downloads/FB2_HPO_classification/updated_permuted_results_rank3.Rdata")
 permuted.sens10 <- apply(permuted.results.rank3, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
 permuted.mean10 <- apply(permuted.sens10, 1, mean)
 permuted.sd10  <- apply(permuted.sens10, 1, sd)
@@ -474,13 +397,13 @@ permuted.max10  <- apply(permuted.sens10, 1, max)
 permuted.min10  <- apply(permuted.sens10, 1, min)
 
 #compare to rank2: View(data.frame(permuted.mean3, permuted.mean10))
-hpo.df10 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank3, mean = permuted.mean10, sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
+hpo.df10 <- data.frame(synd = publication.synd.names, orig.sens = original.sens.rank3, mean = permuted.mean10, sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
 
 #for checkpointing: hpo.df10 <- data.frame(synd = levels(hdrda.df$synd), orig.sens = original.sens.rank3, mean = top10_half_prev[,1], sd = permuted.sd10, max = permuted.max10, min = permuted.min10)
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top10comparison_prevalence.pdf", width = 12, height = 6)
+pdf("results/updated_top10comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df10) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -490,24 +413,24 @@ ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df10) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
         plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
+        legend.position = "none") + 
+  publication.theme
 
 dev.off()
 
 #save out all permuted results####
-# save(permuted.results, permuted.results.rank2, permuted.results.rank3, file = "permuted_results_ranked_plots.Rdata")
+# save(permuted.results, permuted.results.rank2, permuted.results.rank3, file = "updated_permuted_results_ranked_plots.Rdata")
 
-
-#put it all together
+#put it all together####
 # hpo.df, hpo.df3, hpo.df10
-hpo.df.combo <- data.frame(synd = hpo.df$synd, rank1 = hpo.df$mean, rank2 = hpo.df3$mean, rank3 = hpo.df10$mean)
+hpo.df.combo <- data.frame(synd = publication.synd.names, rank1 = hpo.df$mean, rank2 = hpo.df3$mean, rank3 = hpo.df10$mean)
 # well need to fuse in the original values for synds without terms
 hpo.df.combo$rank1[which(is.na(hpo.df.combo$rank1))] <- hpo.df$orig.sens[which(is.na(hpo.df.combo$rank1))]
 hpo.df.combo$rank2[which(is.na(hpo.df.combo$rank2))] <- hpo.df3$orig.sens[which(is.na(hpo.df.combo$rank2))]
 hpo.df.combo$rank3[which(is.na(hpo.df.combo$rank3))] <- hpo.df10$orig.sens[which(is.na(hpo.df.combo$rank3))]
 View(hpo.df.combo)
 
-pdf("results/top1_3_10_prevalence.pdf", width = 12, height = 6)
+pdf("results/updated_top1_3_10_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -rank1), y = rank3), data = hpo.df.combo) +
   geom_bar(fill =  "#A0D2E7", stat = "identity") +
   geom_bar(aes(x = synd, y = rank2), fill = "#3D60A7", stat = "identity") +
@@ -519,6 +442,11 @@ ggplot(aes(x = reorder(synd, -rank1), y = rank3), data = hpo.df.combo) +
         plot.background = element_rect(fill = "transparent"),
         legend.position = "none")
 dev.off()
+
+#by syndrome means
+colMeans(hpo.df.combo[,-1])
+
+
 #how bad is it to supply an incorrect term?####
 
 
