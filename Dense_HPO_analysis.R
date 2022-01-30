@@ -311,25 +311,25 @@ hpo.perf <- synd.hpo.result %>%
 
 original.sens <- confusionMatrix(factor(loocv.pred, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
 hpo.perf.full <- hpo.perf[match(levels(hdrda.df$synd), as.data.frame(hpo.perf[,1])$synd), ]
-hpo.perf.full[,1] <- levels(hdrda.df$synd)
+hpo.perf.full[,1] <- publication.synd.names
 
 
 hpo.df <- data.frame(orig.sens = original.sens, hpo.perf.full)
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/top1comparison_full.pdf", width = 12, height = 6)
+pdf("results/updated_top1comparison_full.pdf", width = 13, height = 7)
 ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
   geom_bar(stat = "identity",  fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = top1.min, ymax = top1.max)) +
   geom_bar(stat = "identity", aes(y = orig.sens), fill = "#0F084B") +
   ylab("Sensitivity") +
   xlab("Syndrome") +
-  scale_colour_manual(name = "Classification /n approach", values=c("#0F084B", "slategrey"), labels = c("Shape only", "With HPO")) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 75, hjust = 1, vjust = 1, size = 9),
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1, size = 8.5),
         plot.background = element_rect(fill = "transparent"),
-        legend.position = "none")
+        legend.position = "none") +
+  publication.theme
 
 dev.off()
 
