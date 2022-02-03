@@ -189,118 +189,72 @@ server <- function(input, output, session){
   # 
   # #update the priors if given hpo terms
   # # new.mod <- eventReactive(input$update_model,{
-  # new.mod <- reactive({
-  #   updated.priors <- table(filtered.lms$Syndrome)
-  #   
-  #   #zero out known impossibilities based on HPO
-  #   #when someone selects specific terms, find the omims/syndrome name in hpo_pos
-  #   #here's an example with facial asymmetry selected: hpo_pos[hpo_pos[,5] == "HP:0000322",]
-  #   print(hpo_pos[hpo_pos[,5] == names(hpo$name)[hpo$name == input$variables2],3])
-  #   
-  #   in.hpo <- rep(NA, length(unique(filtered.lms$Syndrome)))
-  #   
-  #   
-  #   
-  #   # View(data.frame(updated.priors, in.hpo[sort(official.names, index.return = T)$ix]))
-  #   
-  #   #resort to match the table and select the right subset
-  #   # in.hpo <- in.hpo[sort(official.names, index.return = T)$ix]
-  #   # 
-  #   # updated.priors[in.hpo == F] <- 0
-  #   # #scale priors
-  #   # updated.priors <- updated.priors/sum(updated.priors)
-  #   
-  #   cva.data <- data.frame(ID = filtered.lms$ID, Syndrome = as.character(filtered.lms$Syndrome), scores = bad.cva$CVscores)
-  #   mod.data <- data.frame(Syndrome = as.character(filtered.lms$Syndrome), scores = bad.cva$CVscores)
-  #   
-  #   for(i in 1:length(in.hpo)) in.hpo[i] <- length(grep(official.names[i], x = hpo_pos[hpo_pos[,5] == names(hpo$name)[hpo$name == input$variables2],3])) > 0
-  #   
-  #   in.hpo[official.names == "Non-syndromic"] <- TRUE
-  #   
-  #   # #old code that zeroed out priors
-  #   # mod.data <- cva.data[filtered.lms$Syndrome %in% official.names[in.hpo == T],-1]
-  #   # mod.data$Syndrome <- factor(mod.data$Syndrome, levels = official.names[in.hpo == T])
-  #   
-  #   #priors are adjusted to uniformly sharing 20% for each syndrome not in the selected HPO, the rest of the weight is uniform with the remaining syndromes in the HPO list
-  # 
-  #   updated.priors <- rep(NA, length(official.names))
-  #   names(updated.priors) <- official.names
-  #   
-  #   updated.priors[in.hpo == F] <- .05 / length(official.names[in.hpo == F])
-  #   updated.priors[in.hpo == T] <- .95 / length(official.names[in.hpo == T])
-  #   
-  #   updated.priors <- as.numeric(scale(updated.priors, center = F, scale = 1))
-  #   
-  #   hpo.dt <- hpo_pos[hpo_pos[,5] == names(hpo$name)[hpo$name == input$variables2], c(3,5)]
-  #  #currently bugged because it's using exact matches
-  #  #  hpo.dt[,2] <- hpo_pos[hpo_pos[,5] == names(hpo$name)[hpo$name == input$variables2],3] %in% official.names[in.hpo == T]
-  #  # colnames(hpo.dt) <- c("Syndrome name", "In classification data?", "HPO term")
-  #   colnames(hpo.dt) <- c("Syndrome name", "HPO term")
-  #   
-  #   
-  #  
-  #   print(updated.priors)
-  #   
-  #   hdrda.updated <- hdrda(Syndrome ~ ., data = mod.data, prior = updated.priors)
-  #   
-  #   updated.prediction <- predict(hdrda.updated, newdata = rbind(cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2], cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2]), type = "prob")$post[1,]
-  #   
-  #   if(is.null(input$hpo) | is.null(input$variables2)) updated.prediction <- predict(hdrda.cva, newdata = rbind(cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2], cva.data[cva.data$ID == mesh.et.lms()[[3]], -1:-2]), type = "prob")[1,] 
-  #   
-  #   return(list(updated.prediction, hpo.dt, official.names[in.hpo == T]))
-  # })
-  # 
+  new.mod <- reactive({
+    hpo.term <- unique(phenotype_2022$HPO_ID[phenotype_2022$HPO_ID == names(hpo$name)[which(as.character(hpo$name) == input$hpo_terms)]])   #just our dataset HPO
+
+    #see all hpo names for current synd: 
+    # View(data.frame(hpo$name[names(hpo$name) %in% unique(standardized.freqs$term[standardized.freqs$synd == official.names[i]])]))
+    # View(data.frame(hpo$name[names(hpo$name) %in% unique(hpo.pos[hpo.pos$V3 == official.names[i],5])]))
+    #see current hpo name: hpo$name[names(hpo$name) == hpo.term]
+    in.hpo <- rep(NA, length(official.names))
+    for(k in 1:length(in.hpo)) in.hpo[k] <- length(grep(official.names[k], x = phenotype_2022$DiseaseName[phenotype_2022$HPO_ID == hpo.term])) > 0
+    
+    in.hpo[official.names == "Non-syndromic"] <- TRUE
+    #debug: levels(hdrda.df$synd)[in.hpo]
+    
+    #priors are adjusted to uniformly sharing 10% for each syndrome not in the selected HPO, the rest of the weight is uniform with the remaining syndromes in the HPO list
+    updated.priors <- rep(NA, length(official.names))
+    names(updated.priors) <- official.names
+    
+    updated.priors[in.hpo == F] <- 0.1 / length(official.names[in.hpo == F])
+    updated.priors[in.hpo == T] <- 0.9 / length(official.names[in.hpo == T])
+    
+    #round updated.priors to avoid floating point error in summing to 1
+    priorsequal1 <- 0
+    z <- 9
+    while(priorsequal1 != 1){
+      z <- z +1
+      updated.priors <- round(updated.priors, digits = z)
+      updated.priors <- updated.priors/sum(updated.priors)
+      priorsequal1 <- sum(updated.priors)
+    }
+    
+      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
+      updated.prediction <- predict(hdrda.updated, newdata = hdrda.df[1,-1], type = "prob") #what is our pred on the holdout individual given the updated priors 
+      
+    # if(is.null(input$hpo) | is.null(input$hpo_terms)) updated.prediction <- predict(hdrda.mod, newdata = rbind(cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2], cva.data[cva.data$ID == mesh.et.lms()[[3]], -1:-2]), type = "prob")[1,]
+
+    return(list(updated.prediction))
+  })
+
+  
   output$hpo_synds <- renderDataTable({
     #full hpo list
     print(input$hpo_terms)
     phenotype_2022[phenotype_2022$HPO_ID == names(hpo$name)[which(as.character(hpo$name) == input$hpo_terms)], c(2,5,8)]    #just our dataset HPO
   
-    }, options = list(pageLength = 5))
-  # 
-  # output$diagnosis_scree <- renderPlotly({
-  #   
-  #   cva.data <- data.frame(ID = filtered.lms$ID, Syndrome = filtered.lms$Syndrome, scores = bad.cva$CVscores)
-  #   #classify individual's scores using the model
-  #   
-  #   # if(input$hpo == F) posterior.distribution <- predict(hdrda.cva, newdata = rbind(cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2],cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2]), type = "prob")[1,]
-  #   #for testing: posterior.distribution <- predict(hdrda.cva, newdata = rbind(cva.data[cva.data$ID == "150715095947",-1:-2],cva.data[cva.data$ID == "150715095947",-1:-2]), type = "prob")[1,]
-  #   
-  #   posterior.distribution <- new.mod()[[1]]
-  #   
-  #   posterior.distribution <- sort(posterior.distribution, decreasing = T)
-  #   
-  #   #used to be part of plot.df: ID = as.factor(1:10), 
-  #   plot.df <- data.frame(Probs = round(as.numeric(posterior.distribution[1:10]), digits = 4), Syndrome = as.factor(gsub("_", " ", names(posterior.distribution[1:10]))))
-  #   plot.df$Syndrome <- as.character(plot.df$Syndrome)
-  #   plot.df$Syndrome[plot.df$Syndrome == "Control"] <- "Non-syndromic"
-  #   
-  #     # p <- ggplot(data = plot.df) +
-  #     # geom_bar(stat = "identity", aes(x = Syndrome, y = Probs)) +
-  #     # theme_bw() +
-  #     # xlab("Syndrome") +
-  #     # ylab("Class probability")  
-  #     # # scale_x_discrete(labels = gsub("_", " ", plot.df$Syndrome)) 
-  #     # 
-  #     # 
-  #     # 
-  #     # ggplotly(p + 
-  #     #           theme(axis.text.x = element_text(angle = 55, hjust = 1, size = 15),
-  #     #                    axis.text.y = element_text(size = 14),
-  #     #                    axis.title = element_text(size = 15, face = "bold"),
-  #     #                    plot.background = element_rect(fill = rgb(245/255,245/255,245/255,.9), colour = rgb(245/255,245/255,245/255,.9))),
-  #     #          tooltip = c("Syndrome", "Probs"))
-  #     # 
-  #    
-  #     plot_ly(data = plot.df, x = ~Syndrome, y = ~Probs, type = "bar", color = I("grey"), hoverinfo = paste0("Syndrome: ", "x", "<br>", "Probability: ", "y")) %>%
-  #       layout(xaxis = list(tickvals = gsub("_", " ", plot.df$Syndrome), tickangle = 45, ticktext = c(Syndrome = plot.df$Syndrome, Probability = plot.df$Probs), title = "<b>Syndrome</b>"),
-  #              yaxis = list(title = "<b>Class probability</b>"),
-  #              paper_bgcolor='rgba(245, 245, 245, .9)',
-  #              margin = list(b = 125, l = 50, r = 100)
-  #              )
-  #     
-  #   
-  # })
-  # 
+    }, options = list(pageLength = 5, autoWidth = F, scrollX = T))
+  
+
+  output$diagnosis_scree <- renderPlotly({
+
+    posterior.distribution <- sort(new.mod()[[1]]$posterior, decreasing = T)
+
+    #used to be part of plot.df: ID = as.factor(1:10),
+    plot.df <- data.frame(Probs = round(as.numeric(posterior.distribution[1:10]), digits = 4), Syndrome = as.factor(gsub("_", " ", names(posterior.distribution[1:10]))))
+    plot.df$Syndrome <- as.character(plot.df$Syndrome)
+    plot.df$Syndrome[plot.df$Syndrome == "Control"] <- "Non-syndromic"
+
+    plot_ly(data = plot.df, x = ~Syndrome, y = ~Probs, type = "bar", color = I("grey"), hoverinfo = paste0("Syndrome: ", "x", "<br>", "Probability: ", "y")) %>%
+      layout(xaxis = list(tickvals = gsub("_", " ", plot.df$Syndrome), tickangle = 45, ticktext = c(Syndrome = plot.df$Syndrome, Probability = plot.df$Probs), title = "<b>Syndrome</b>"),
+             yaxis = list(title = "<b>Class probability</b>"),
+             paper_bgcolor='rgba(245, 245, 245, .9)',
+             margin = list(b = 125, l = 50, r = 100)
+            )
+
+
+  })
+
   # #report generator
   # output$report <- downloadHandler(
   #   # For PDF output, change this to "report.pdf"
