@@ -19,6 +19,7 @@ library(shinyjs)
 # save(, file = "~/shiny/Classification_demo/demo_objects.Rdata")
 # load("/srv/shiny-server/Classification_demo/demo_objects.Rdata")
 load("/Users/jovid/shiny/shinyapps/FB2_HPO_classification/app_startup.Rdata")
+load("~/Downloads/mshape.Rdata")
 
 body <- dashboardBody(
   tags$head(
@@ -91,7 +92,7 @@ ui <- dashboardPage(title = "Classification demo",
 
 server <- function(input, output, session){
   
-  name.key <- c(Apert = 761, Achondroplasia = 192, Williams = 1702, `Treacher Collins` = 47, Noonan =699, `22q deletion` = 1401, Cockayne = 2423, Nager = 799)
+  name.key <- c(Apert = 1419, Achondroplasia = 34, Williams = 1702, `Treacher Collins` = 47, Noonan =699, `22q deletion` = 1357, Cockayne = 2423, Nager = 799)
   # 
   # outVar <- reactive({
   #   hpo.terms <- hpo$name[grep(tolower(hpo$name), pattern = tolower(input$hpo_input))]
@@ -114,7 +115,7 @@ server <- function(input, output, session){
     file1 <- name.key[names(name.key) %in% input$file1]
     
     file.mesh <- atlas
-    synd.mshape <- t(atlas$vb[-4,])
+    synd.mshape <- mean.shape
     file.mesh$vb[-4,] <- t(showPC(as.matrix(hdrda.df[file1, -1]), PC.eigenvectors, synd.mshape)[,,1])
 
     return(list(file.mesh))
@@ -134,7 +135,7 @@ server <- function(input, output, session){
     meshrot <- rotmesh.onto(file.mesh, t(file.mesh$vb[-4, sample1k]), t(atlas$vb[-4, sample1k]))
     meshrot <- rotmesh.onto(mesh.et.lms()[[1]], t(mesh.et.lms()[[1]]$vb[-4, sample1k]), t(atlas$vb[-4, sample1k]))
 
-    plot3d(meshrot$mesh, col = adjustcolor("lightgrey", .3), alpha = .3, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
+    plot3d(vcgSmooth(meshrot$mesh), col = "lightgrey", alpha = 1, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
     # spheres3d(as.matrix(meshrot$yrot), radius = .75, color = "red")
 
     if(input$dense > 0) points3d(t(meshrot$mesh$vb)[,-4], col = rgb(1, 0, 0), alpha = .1)
@@ -215,10 +216,12 @@ server <- function(input, output, session){
       priorsequal1 <- sum(updated.priors)
     }
     
-      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
-      updated.prediction <- predict(hdrda.updated, newdata = hdrda.df[name.key[names(name.key) %in% input$file1], -1], type = "prob") #what is our pred on the holdout individual given the updated priors 
+    hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
+    updated.prediction <- predict(hdrda.updated, newdata = hdrda.df[name.key[names(name.key) %in% input$file1], -1], type = "prob") #what is our pred on the holdout individual given the updated priors 
       
-    # if(is.null(input$hpo) | is.null(input$hpo_terms)) updated.prediction <- predict(hdrda.mod, newdata = rbind(cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2], cva.data[cva.data$ID == mesh.et.lms()[[3]], -1:-2]), type = "prob")[1,]
+    print(input$hpo)
+    print(is.null(input$hpo) | is.null(input$hpo_terms))
+    if(is.null(input$hpo) | is.null(input$hpo_terms)) updated.prediction <- predict(hdrda.mod, newdata = hdrda.df[name.key[names(name.key) %in% input$file1], -1], type = "prob")
 
     return(list(updated.prediction))
   })

@@ -23,10 +23,6 @@ border-top-left-radius:5px;
 border-top-right-radius:5px;
 }
 
-.box.box-solid.box-warning:hover {
-    box-shadow: 0 12px 24px 0 rgba(0, 0, 0, 0.9);
-    transition: box-shadow 0.3s ease-in-out;
-}
 
 .skin-blue .main-header .navbar {
     background-color: #a6192e;
