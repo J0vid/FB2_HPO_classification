@@ -4,17 +4,13 @@ library(shinydashboard)
 library(Morpho)
 library(rgl)
 library(ggplot2)
-library(dplyr)
-library(geomorph)
-library(stats)
 library(caret)
-library(shapes)
 library(sparsediscrim)
-library(corpcor)
 library(plotly)
 library(shinycssloaders)
 library(Rvcg)
 library(shinyjs)
+library(rVtkstatismo)
 
 # save(, file = "~/shiny/Classification_demo/demo_objects.Rdata")
 # load("/srv/shiny-server/Classification_demo/demo_objects.Rdata")
@@ -253,6 +249,60 @@ server <- function(input, output, session){
 
 
   })
+  
+  
+  
+  mesh.et.lms <- eventReactive(input$file1, {
+    print(input$file1)
+    
+    file.mesh <- file2mesh(input$file1$datapath[grepl("*.ply", input$file1$datapath)])
+    # file.name <- substr(input$file1$name, start = 1, stop = nchar(input$file1$name) - 4)
+    file.name <- "test"
+    
+    file.lms <- read.mpp(input$file1$datapath[grepl("*.pp", input$file1$datapath)])
+    
+    tmp.fb <- rotmesh.onto(file.mesh, refmat = file.lms, tarmat = a.man.lm, scale = T)
+    gp.fb <- tmp.fb$yrot
+    
+    tmp.fb <- tmp.fb$mesh
+    
+    Kernels <- IsoKernel(0.1,atlas)
+    mymod <- statismoModelFromRepresenter(test.atlas, kernel = Kernels, ncomp = 100)
+    postDef <- posteriorDeform(mymod, tmp.fb, modlm = atlas.lms, samplenum = 1000)
+    
+    withProgress(message = 'Fitting mesh', value = 0, {
+      
+      for (i in 1:7) {
+        # Increment the progress bar, and update the detail text.
+        incProgress(1/7, detail = c(rep("Shaping, thinking, doing...", 4), "Coffee break?", "Non-rigid deformation", "Last few measurements")[i])
+        
+        if(i < 4) postDef <- posteriorDeform(mymod, tmp.fb, modlm = a.man.lm, tarlm = gp.fb, samplenum = 1000, reference = postDef)
+        
+        if(i > 4){
+          postDefFinal <- postDef
+          postDefFinal <- posteriorDeform(mymod, tmp.fb, modlm=atlas.lms, samplenum = 3000, reference = postDefFinal, deform = T, distance = 3)
+        }
+      }
+      
+    })
+    
+    return(list(postDefFinal, file.name, file.mesh))
+  })
+  
+  
+  output$submitted_face <- renderRglwidget({
+    pdf(NULL)
+    dev.off()
+    
+    par3d(userMatrix = diag(4), zoom = .75)
+    bg3d(color = "#e5e5e5")
+    plot3d(mesh.et.lms()[[1]], col = "lightgrey", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
+    rglwidget()
+    
+    #if heatmap, register face, make comp same age?, compare
+    
+  })
+  
 
   # #report generator
   # output$report <- downloadHandler(
