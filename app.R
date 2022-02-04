@@ -42,7 +42,7 @@ body <- dashboardBody(
         solidHeader = T,
         status = "warning",
         collapsible = F,
-        selectInput("file1", "", choices = c("Apert", "Achondroplasia", "Williams", "Treacher Collins", "Noonan", "22q deletion", "Cockayne", "Nager"), selected = "22q deletion", multiple = FALSE, selectize = TRUE, width = NULL, size = NULL),
+        selectInput("file1", "", choices = c("Apert", "Achondroplasia", "Williams", "Treacher Collins", "Noonan", "22q deletion", "Cockayne", "Nager"), selected = "22q deletion", multiple = F),
         splitLayout(cellWidths = c("50%", "50%"),
                     checkboxGroupInput("compare", label = "Morphology", choices = "Make a comparison?"),
                     checkboxInput("dense", label = "Dense landmarks")
@@ -59,12 +59,9 @@ body <- dashboardBody(
                          )
         ),
         conditionalPanel(condition = "input.hpo == 'Add HPO terms'",
-                         # textInput("hpo_input", label = "HPO", value = "limb"),
-                         # uiOutput('variables')
-                         # actionButton("update_model", "Update model")
                          selectInput("hpo_terms", label = "Terms", choices = as.character(hpo$name[names(hpo$name) %in% unique(phenotype_2022$HPO_ID)]), selected = "Pointed chin")
-)
-                         )
+                        )
+      )
     ),
     box(title = tags$b("Syndrome probabilities"),
         status = "warning",
@@ -94,7 +91,7 @@ ui <- dashboardPage(title = "Classification demo",
 
 server <- function(input, output, session){
   
-  # name.key <- c(Apert = "140903101436.ply", Achondroplasia = "150706091510.ply", Williams = "150715095947.ply", `Treacher Collins` = "150910091215.ply", Noonan = "160722120720.ply", `22q deletion` = "160728105214.ply", Cockayne = "170728172355.ply", Nager = "170823151810.ply")
+  name.key <- c(Apert = 761, Achondroplasia = 192, Williams = 1702, `Treacher Collins` = 47, Noonan =699, `22q deletion` = 1401, Cockayne = 2423, Nager = 799)
   # 
   # outVar <- reactive({
   #   hpo.terms <- hpo$name[grep(tolower(hpo$name), pattern = tolower(input$hpo_input))]
@@ -109,77 +106,76 @@ server <- function(input, output, session){
   # output$variables <- renderUI({
   #   selectInput('variables2', 'Associated HPO terms', ontology.list()[[2]], multiple = T)
   # })
-  # 
-  # 
-  # mesh.et.lms <- eventReactive(input$file1, {
-  # # mesh.et.lms <- reactive({
-  #   # file1 <- name.key[names(name.key) %in% "Nager"]
-  #   file1 <- name.key[names(name.key) %in% input$file1]
-  #   file.mesh <- file2mesh(paste0("/srv/shiny-server/Classification_demo/scans/", file1))
-  # 
-  #   file.name <- substr(file1, start = 1, stop = nchar(file1) - 4)
-  #   file.lms <- read.table(paste0("/srv/shiny-server/Classification_demo/lms/", file.name, ".txt"))
-  #   
-  #   return(list(file.mesh, file.lms, file.name))
-  # })
-  # 
-  # output$LM_face <- renderRglwidget({
-  #   #look at selected person's file name, find the scan and paste it here
-  #   scan.name <- substr(FB2_class$Subj_ID2, 1, stop = nchar(as.character(FB2_class$Subj_ID2))-2)
-  #   
-  #   clear3d()
-  #   bg3d(color = rgb(245/255, 245/255, 245/255, .9))
-  #   r.at.lms <- procOPA(as.matrix(atlas.lms), as.matrix(mesh.et.lms()[[2]]))$R
-  #   r.at.lms <- as.matrix(mesh.et.lms()[[2]]) %*% as.matrix(r.at.lms)
-  #   # par3d(userMatrix = matrix(c(.998,-.005,.0613,0,.0021,.999,.045,0,-.061,-.045,.997,0,0,0,0,1),ncol =4,nrow = 4))
-  #   par3d(userMatrix = diag(4))
-  #   aspect3d("iso")
-  #   par3d(zoom = .7)
-  #   
-  #   meshrot <- rotmesh.onto(mesh.et.lms()[[1]], as.matrix(mesh.et.lms()[[2]]), as.matrix(atlas.lms))
-  #   
-  #   plot.scan <- plot3d(meshrot$mesh, col = adjustcolor("lightgrey", .3), alpha = .3, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "")
-  #   spheres3d(as.matrix(meshrot$yrot), radius = .75, color = "red")
-  #   
-  #   if(input$dense > 0) points3d(t(meshrot$mesh$vb)[,-4], col = rgb(1, 0, 0), alpha = .1)
-  #   
-  #   if(length(input$compare) > 0){
-  #     
-  #     #find individuals' registered lms
-  #     ind.lms <- matrix(as.numeric(filtered.lms[as.character(filtered.lms[,1]) %in% mesh.et.lms()[[3]],-1:-2]), nrow = 65, byrow = T)
-  #     
-  #     #rotonto atlas
-  #     scaled.lms <- procOPA(mshape(arrayspecs(filtered.lms[,-1:-2], 65, 3)), as.matrix(atlas.lms))$Bhat
-  #     scaled.mesh <- rotmesh.onto(atlas, refmat = as.matrix(atlas.lms), tarmat = as.matrix(scaled.lms), scale = T, reflection = T)
-  #     
-  #     #calculate specified sydrome mean
-  #     syndrome.mean <- matrix(as.numeric(colMeans(filtered.lms[filtered.lms$Syndrome == input$reference,-1:-2])), nrow = 65, byrow = T)
-  #     #tps3d
-  #     clear3d()
-  #     
-  #     # par3d(userMatrix = matrix(c(.998,-.005,.0613,0,.0021,.999,.045,0,-.061,-.045,.997,0,0,0,0,1),ncol =4,nrow = 4))
-  #     par3d(userMatrix = matrix(c(-.017,-.999,-.022,0,-.999,-.016,-.03,0,.03,-.023,.999,0,0,0,0,1),ncol =4,nrow = 4))
-  #     par3d(zoom = .7)
-  #     
-  #     
-  #     synd.mesh <- tps3d(scaled.mesh$mesh, scaled.lms, syndrome.mean)
-  #     ind.mesh <- rotmesh.onto(mesh.et.lms()[[1]], as.matrix(mesh.et.lms()[[2]]), ind.lms, scale = T, reflection = T)$mesh
-  #     
-  #     if(input$displace == F){
-  #       bg3d(color = rgb(245/255, 245/255, 245/255, .9))
-  #       mD.synd <- meshDist(ind.mesh, synd.mesh , plot = F, scaleramp = F, displace = input$displace, alpha = 1)
-  #       a <- render(mD.synd, displace = input$displace, alpha = 1)
-  #     } else if(input$displace){
-  #       bg3d(color = "#1a1a1a")
-  #       mD.synd <- meshDist(ind.mesh, synd.mesh, plot = F, scaleramp = F, displace = input$displace, alpha = input$transparency)
-  #       a <- render(mD.synd, displace = input$displace, alpha = input$transparency)
-  #     }
-  #     
-  #   }
-  #   aspect3d("iso")
-  #   rglwidget()
-  #   
-  # })
+
+
+  mesh.et.lms <- eventReactive(input$file1, {
+  # mesh.et.lms <- reactive({
+    # file1 <- name.key[names(name.key) %in% "Nager"]
+    file1 <- name.key[names(name.key) %in% input$file1]
+    
+    file.mesh <- atlas
+    synd.mshape <- t(atlas$vb[-4,])
+    file.mesh$vb[-4,] <- t(showPC(as.matrix(hdrda.df[file1, -1]), PC.eigenvectors, synd.mshape)[,,1])
+
+    return(list(file.mesh))
+  })
+
+  output$LM_face <- renderRglwidget({
+    
+    clear3d()
+    bg3d(color = rgb(245/255, 245/255, 245/255, .9))
+    
+    # par3d(userMatrix = matrix(c(.998,-.005,.0613,0,.0021,.999,.045,0,-.061,-.045,.997,0,0,0,0,1),ncol =4,nrow = 4))
+    par3d(userMatrix = diag(4))
+    aspect3d("iso")
+    par3d(zoom = .7)
+    
+    sample1k <- sample(1:27903, 1000)
+    meshrot <- rotmesh.onto(file.mesh, t(file.mesh$vb[-4, sample1k]), t(atlas$vb[-4, sample1k]))
+    meshrot <- rotmesh.onto(mesh.et.lms()[[1]], t(mesh.et.lms()[[1]]$vb[-4, sample1k]), t(atlas$vb[-4, sample1k]))
+
+    plot3d(meshrot$mesh, col = adjustcolor("lightgrey", .3), alpha = .3, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
+    # spheres3d(as.matrix(meshrot$yrot), radius = .75, color = "red")
+
+    if(input$dense > 0) points3d(t(meshrot$mesh$vb)[,-4], col = rgb(1, 0, 0), alpha = .1)
+
+    if(length(input$compare) > 0){
+
+      #find individuals' registered lms
+      ind.lms <- matrix(as.numeric(filtered.lms[as.character(filtered.lms[,1]) %in% mesh.et.lms()[[3]],-1:-2]), nrow = 65, byrow = T)
+
+      #rotonto atlas
+      scaled.lms <- procOPA(mshape(arrayspecs(filtered.lms[,-1:-2], 65, 3)), as.matrix(atlas.lms))$Bhat
+      scaled.mesh <- rotmesh.onto(atlas, refmat = as.matrix(atlas.lms), tarmat = as.matrix(scaled.lms), scale = T, reflection = T)
+
+      #calculate specified sydrome mean
+      syndrome.mean <- matrix(as.numeric(colMeans(filtered.lms[filtered.lms$Syndrome == input$reference,-1:-2])), nrow = 65, byrow = T)
+      #tps3d
+      clear3d()
+
+      # par3d(userMatrix = matrix(c(.998,-.005,.0613,0,.0021,.999,.045,0,-.061,-.045,.997,0,0,0,0,1),ncol =4,nrow = 4))
+      par3d(userMatrix = matrix(c(-.017,-.999,-.022,0,-.999,-.016,-.03,0,.03,-.023,.999,0,0,0,0,1),ncol =4,nrow = 4))
+      par3d(zoom = .7)
+
+
+      synd.mesh <- tps3d(scaled.mesh$mesh, scaled.lms, syndrome.mean)
+      ind.mesh <- rotmesh.onto(mesh.et.lms()[[1]], as.matrix(mesh.et.lms()[[2]]), ind.lms, scale = T, reflection = T)$mesh
+
+      if(input$displace == F){
+        bg3d(color = rgb(245/255, 245/255, 245/255, .9))
+        mD.synd <- meshDist(ind.mesh, synd.mesh , plot = F, scaleramp = F, displace = input$displace, alpha = 1)
+        a <- render(mD.synd, displace = input$displace, alpha = 1)
+      } else if(input$displace){
+        bg3d(color = "#1a1a1a")
+        mD.synd <- meshDist(ind.mesh, synd.mesh, plot = F, scaleramp = F, displace = input$displace, alpha = input$transparency)
+        a <- render(mD.synd, displace = input$displace, alpha = input$transparency)
+      }
+
+    }
+    aspect3d("iso")
+    rglwidget()
+
+  })
   # 
   # #change to enable when a scan is uploaded: DONE
   # observeEvent(is.null(input$file1) == F,
@@ -220,7 +216,7 @@ server <- function(input, output, session){
     }
     
       hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
-      updated.prediction <- predict(hdrda.updated, newdata = hdrda.df[1,-1], type = "prob") #what is our pred on the holdout individual given the updated priors 
+      updated.prediction <- predict(hdrda.updated, newdata = hdrda.df[name.key[names(name.key) %in% input$file1], -1], type = "prob") #what is our pred on the holdout individual given the updated priors 
       
     # if(is.null(input$hpo) | is.null(input$hpo_terms)) updated.prediction <- predict(hdrda.mod, newdata = rbind(cva.data[cva.data$ID == mesh.et.lms()[[3]],-1:-2], cva.data[cva.data$ID == mesh.et.lms()[[3]], -1:-2]), type = "prob")[1,]
 
