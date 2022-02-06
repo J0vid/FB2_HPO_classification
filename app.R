@@ -11,16 +11,19 @@ library(shinycssloaders)
 library(Rvcg)
 library(shinyjs)
 library(RvtkStatismo)
+library(shinyFiles)
+library(mesheR)
 options(shiny.maxRequestSize=300*1024^2)
 
 
 # save(, file = "~/shiny/Classification_demo/demo_objects.Rdata")
 # load("/srv/shiny-server/Classification_demo/demo_objects.Rdata")
-# load("~/app_startup.Rdata")
+load("~/app_startup.Rdata")
+load("~/adjusted_PCs.Rdata")
 # load("~/mshape.Rdata")
 atlas$vb[-4,] <- t(synd.mshape)
 atlas.lms <- read.mpp("data/atlas_picked_points.pp")
-hdrda.mod <- hdrda(synd ~ ., data = hdrda.df)
+hdrda.mod <- hdrda(synd ~ ., data = hdrda.df[,1:81])
 
 predPC.lm <- function(fit, datamod){
   mat <- model.matrix(datamod)
@@ -39,24 +42,31 @@ body <- dashboardBody(
         solidHeader = T,
         status = "warning",
         collapsible = T,
+        collapsed = T,
         width = 12,
         "This application serves as a demonstration of our syndrome classifier. Choose one of the preloaded faces under the [Pick Parameters] tab. The face will be displayed under the [Scan] tab. The [Syndrome Probabilities] tab will show the top ten syndrome probabilities from the classifier. You can compare the individual's facial shape similarity to the average shape of any syndrome by checking the Make a comparison box under the [Pick parameters] tab."
     ),
     box(title = tags$b("Scan"),
-        width = 8,
+        width = 6,
         solidHeader = T,
         status = "warning",
         collapsible = F,
-        splitLayout(cellWidths = c("20%", "40%", "40%"),
-                    shinyFilesButton("file1", "Upload Files", "Please select a file", multiple = TRUE, viewtype = "detail"),
+        withSpinner(rglwidgetOutput("submitted_face", width = "auto"), type = 6, color = "#757471"),
+        
+        splitLayout(cellWidths = c("30%", "30%"),
                     numericInput("age", label = "Current age (years)", value = 33, min = .5, max = 80),
                     selectInput("sex", label = "Sex", choices = c("Female", "Male"), selected = "Male")
         ),
-        # withSpinner(rglwidgetOutput("LM_face", width = "auto"), type = 6, color = "#757471")
-        withSpinner(rglwidgetOutput("submitted_face", width = "auto"), type = 6, color = "#757471")
+        shinyFilesButton("file1", "Upload Files", "Please select a file", multiple = TRUE, viewtype = "detail")
+    ),
+    box(title = tags$b("Syndrome probabilities"),
+        status = "warning",
+        solidHeader = T,
+        collapsible = F,
+        withSpinner(plotlyOutput("diagnosis_scree"), type = 6, color = "#757471")
     ),
     box(title = tags$b("Pick parameters"),
-        width = 4,
+        width = 6,
         solidHeader = T,
         status = "warning",
         collapsible = F,
@@ -84,13 +94,8 @@ body <- dashboardBody(
         )
     )
   ),
-  box(title = tags$b("Syndrome probabilities"),
-      status = "warning",
-      solidHeader = T,
-      collapsible = F,
-      withSpinner(plotlyOutput("diagnosis_scree"), type = 6, color = "#757471")
-  ),
   box(title = tags$b("HPO-related info"),
+      width = 6,
       status = "warning",
       solidHeader = T,
       collapsible = T,
@@ -251,16 +256,50 @@ server <- function(input, output, session){
     dev.off()
     
     par3d(userMatrix = diag(4), zoom = .75)
-    bg3d(color = "#e5e5e5")
-    plot3d(vcgSmooth(mesh.et.lms()[[1]]), col = "lightgrey", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
-    rglwidget()
+    bg3d(color = rgb(245/255,245/255,245/255,.9))
+    plot3d(vcgSmooth(mesh.et.lms()[[1]]), col = "#E9C6CB", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
+    #debug: plot3d(vcgSmooth(jovid), col = "#969FB4", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
     
-    #if heatmap, register face, make comp same age?, compare
+    if(input$dense > 0) points3d(t(mesh.et.lms()[[1]]$vb)[,-4], col = 2, alpha = .5)
+    
+    #     if(length(input$compare) > 0){
+    # 
+    #       #find individuals' registered lms
+    #       ind.lms <- matrix(as.numeric(filtered.lms[as.character(filtered.lms[,1]) %in% mesh.et.lms()[[3]],-1:-2]), nrow = 65, byrow = T)
+    # 
+    #       #rotonto atlas
+    #       scaled.lms <- procOPA(mshape(arrayspecs(filtered.lms[,-1:-2], 65, 3)), as.matrix(atlas.lms))$Bhat
+    #       scaled.mesh <- rotmesh.onto(atlas, refmat = as.matrix(atlas.lms), tarmat = as.matrix(scaled.lms), scale = T, reflection = T)
+    # 
+    #       #calculate specified sydrome mean
+    #       syndrome.mean <- matrix(as.numeric(colMeans(filtered.lms[filtered.lms$Syndrome == input$reference,-1:-2])), nrow = 65, byrow = T)
+    #       #tps3d
+    #       clear3d()
+    # 
+    #       # par3d(userMatrix = matrix(c(.998,-.005,.0613,0,.0021,.999,.045,0,-.061,-.045,.997,0,0,0,0,1),ncol =4,nrow = 4))
+    #       par3d(userMatrix = matrix(c(-.017,-.999,-.022,0,-.999,-.016,-.03,0,.03,-.023,.999,0,0,0,0,1),ncol =4,nrow = 4))
+    #       par3d(zoom = .7)
+    # 
+    # 
+    #       synd.mesh <- tps3d(scaled.mesh$mesh, scaled.lms, syndrome.mean)
+    #       ind.mesh <- rotmesh.onto(mesh.et.lms()[[1]], as.matrix(mesh.et.lms()[[2]]), ind.lms, scale = T, reflection = T)$mesh
+    # 
+    #       if(input$displace == F){
+    #         bg3d(color = rgb(245/255, 245/255, 245/255, .9))
+    #         mD.synd <- meshDist(ind.mesh, synd.mesh , plot = F, scaleramp = F, displace = input$displace, alpha = 1)
+    #         a <- render(mD.synd, displace = input$displace, alpha = 1)
+    #       } else if(input$displace){
+    #         bg3d(color = "#1a1a1a")
+    #         mD.synd <- meshDist(ind.mesh, synd.mesh, plot = F, scaleramp = F, displace = input$displace, alpha = input$transparency)
+    #         a <- render(mD.synd, displace = input$displace, alpha = input$transparency)
+    #       }
+    # 
+    #     }
+    
+    rglwidget()
     
   })  
   
-  # 
-  # #change to enable when a scan is uploaded: DONE
   # observeEvent(is.null(input$file1) == F,
   #              {
   #                disable("report")
@@ -271,8 +310,12 @@ server <- function(input, output, session){
   new.mod <- reactive({
     #project new face in PC space
     new.scores <- getPCscores(t(mesh.et.lms()[[1]]$vb[-4,]), PC.eigenvectors, synd.mshape)
-    # new.scores <- data.frame(getPCscores(t(jovid$vb[-4,]), PC.eigenvectors, synd.mshape))
-    
+    jovid <- file2mesh("data/da_reg.ply")
+    sample1k <- sample(1:27903, 500)
+    #register landmarks to the space
+    registered.mesh <- rotmesh.onto(jovid, t(jovid$vb[-4, sample1k]), synd.mshape[sample1k,], scale = T)$mesh
+    new.scores <- data.frame(getPCscores(t(registered.mesh$vb[-4,]), PC.eigenvectors, synd.mshape))
+    print(new.scores)
     #correct submitted face for regression effects
     age.poly <- predict(poly(d.meta$Age,3), newdata = input$age)
     # datamod <- ~ as.numeric("Male" == "Female") + age.poly[1] + age.poly[2] + age.poly[3]
@@ -281,10 +324,10 @@ server <- function(input, output, session){
     
     new.adjusted <- new.scores - expected.values
     colnames(new.adjusted) <- colnames(PC.scores)
-    
+    print(new.adjusted)
     print(is.null(input$hpo) | is.null(input$hpo_terms))
     if(is.null(input$hpo) | is.null(input$hpo_terms)){
-      updated.prediction <- predict(hdrda.mod, newdata = new.adjusted, type = "prob")
+      updated.prediction <- predict(hdrda.mod, newdata = new.adjusted[1,1:80], type = "prob")
     } else{
       
       hpo.term <- unique(phenotype_2022$HPO_ID[phenotype_2022$HPO_ID == names(hpo$name)[which(as.character(hpo$name) == input$hpo_terms)]])   #just our dataset HPO
@@ -317,8 +360,8 @@ server <- function(input, output, session){
         priorsequal1 <- sum(updated.priors)
       }
       
-      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df, prior = updated.priors)
-      updated.prediction <- predict(hdrda.updated, newdata = new.adjusted, type = "prob") #what is our pred on the holdout individual given the updated priors
+      hdrda.updated <- hdrda(synd ~ ., data = hdrda.df[,1:81], prior = updated.priors)
+      updated.prediction <- predict(hdrda.updated, newdata = new.adjusted[1:80], type = "prob") #what is our pred on the holdout individual given the updated priors
       
       print(input$hpo)
     }
@@ -382,9 +425,3 @@ server <- function(input, output, session){
 
 #Run app
 shinyApp(ui = ui, server = server)
-
-
-
-
-
-

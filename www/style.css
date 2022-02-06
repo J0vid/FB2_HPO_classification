@@ -1,26 +1,25 @@
 
 body {
-background: rgba(245, 245, 245, .9);
+  background: rgba(245, 245, 245, .9);
 }
 
 .skin-blue .main-header .logo:hover {
-background-color: #901628;
+  background-color: #901628;
 }
 
 .box.box-solid.box-warning>.box-header {
   color:#fff;
-  background:#a6192e
-                    }
+  background:#a6192e;
+  border-top-right-radius: 20px;
+  border-top-left-radius: 20px;
+
+}
 
 .box.box-solid.box-warning{
 background: rgba(245, 245, 245, .9);
-border-bottom-color:#666666;
-border-left-color:#666666;
-border-right-color:#666666;
-border-top-color:#666666;
-box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.9);
-border-top-left-radius:5px;
-border-top-right-radius:5px;
+box-shadow: 4px 10px 10px 0 rgba(30,30,30,.1);
+border-radius: 20px;
+border: rgba(245, 245, 245, .9);;
 }
 
 
