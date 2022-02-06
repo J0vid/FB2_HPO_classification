@@ -90,10 +90,12 @@ official.names[official.names == "Pallister-Killian Syndrome"] <- "PALLISTER-KIL
 
 
 #orpha names####
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+
 official.names <- levels(hdrda.df$synd)
 
 #match to new HPO database to get better frequency info
-phenotype_2022 <- read_delim("phenotype-2022.hpoa", delim = "\t", escape_double = FALSE, trim_ws = TRUE, skip = 4)
+phenotype_2022 <- readr::read_delim("phenotype-2022.hpoa", delim = "\t", escape_double = FALSE, trim_ws = TRUE, skip = 4)
 
 #cut down to only physical abnormalities
 phenotype_2022 <- phenotype_2022[phenotype_2022$Aspect == "P", ]

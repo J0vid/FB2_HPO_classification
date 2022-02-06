@@ -1,6 +1,7 @@
 library(Morpho)
 
-load("D:/hpo_data/30k.Rdata")
+load("E:/hpo_data/30k.Rdata")
+load("E:/hpo_data/Dense_combined_starter_PC_outliers_duplicates_removed.Rdata")
 d.meta.ns <- d.meta
 
 tmp.mesh <- file2mesh("whoami3.ply")
@@ -54,7 +55,7 @@ plot(d.pca$x[,1], d.pca$x[,2], col = (d.meta$Syndrome == "Non-syndromic") + 1)
 #construct eigenvectors
 PC.eigenvectors <- d.pca$rotation[,1:200]
 PC.scores <- d.pca$x[,1:200]
-synd.mshape <- geomorph::arrayspecs(rbind(d.pca$center,d.pca$center), p = 27903, k = 3)[,,1]
+synd.mshape <- vecx(rbind(d.pca$center,d.pca$center), revert = T, lmdim = 3)[,,1]
 
 library(sparsediscrim)
 #relevel d.meta
@@ -66,6 +67,7 @@ hdrda.mod <- hdrda(synd ~ ., data = hdrda.df)
 save(hdrda.df, hdrda.mod, synd.mshape, PC.eigenvectors, PC.scores, d.meta, file = "combined_PCs.Rdata")
 
 #adjust pc scores for effects of age and sex, save resids and coefficients separately
+
 age.sex.lm <- lm(PC.scores ~ d.meta$Sex + poly(d.meta$Age,3))
 
 adjusted.PC.coefs <- age.sex.lm$coefficients
@@ -75,7 +77,7 @@ adjusted.PC.scores <- age.sex.lm$residuals
 hdrda.df <- data.frame(synd = d.meta$Syndrome, adjusted.PC.scores)
 hdrda.mod <- hdrda(synd ~ ., data = hdrda.df)
 
-save(hdrda.df, hdrda.mod, age.sex.lm, adjusted.PC.scores, file = "adjusted_PCs.Rdata")
+save(hdrda.df, hdrda.mod, age.sex.lm, adjusted.PC.scores, synd.mshape, PC.eigenvectors, file = "adjusted_PCs.Rdata")
 
 plot(d.pca$x[,1], d.pca$x[,2])
 points(adjusted.PC.scores[,1], adjusted.PC.scores[,2], col = 2)
