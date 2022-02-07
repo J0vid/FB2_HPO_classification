@@ -13,6 +13,7 @@ library(shinyjs)
 library(RvtkStatismo)
 library(shinyFiles)
 library(mesheR)
+library(DT)
 options(shiny.maxRequestSize=300*1024^2)
 
 
@@ -52,7 +53,7 @@ body <- dashboardBody(
         status = "warning",
         collapsible = F,
         withSpinner(rglwidgetOutput("submitted_face", width = "auto"), type = 6, color = "#757471"),
-        
+        hr(style = "border-top: 1.2px solid #d3d3d3;"),
         splitLayout(cellWidths = c("30%", "30%"),
                     numericInput("age", label = "Current age (years)", value = 33, min = .5, max = 80),
                     selectInput("sex", label = "Sex", choices = c("Female", "Male"), selected = "Male")
@@ -65,42 +66,39 @@ body <- dashboardBody(
         collapsible = F,
         withSpinner(plotlyOutput("diagnosis_scree"), type = 6, color = "#757471")
     ),
-    box(title = tags$b("Pick parameters"),
+    box(title = tags$b("Compare & visualize morphology"),
         width = 6,
         solidHeader = T,
         status = "warning",
         collapsible = F,
-        # selectInput("file1", "", choices = c("Apert", "Achondroplasia", "Williams", "Treacher Collins", "Noonan", "22q deletion", "Cockayne", "Nager"), selected = "22q deletion", multiple = F),
-        # fileInput("file1", "",
-        #           multiple = T,
-        #           accept = c(".obj", ".ply", ".png", ".pp", ".csv")),
         splitLayout(cellWidths = c("50%", "50%"),
-                    checkboxGroupInput("compare", label = "Morphology", choices = "Make a comparison?"),
-                    checkboxInput("dense", label = "Dense landmarks")
+                    disabled(checkboxInput("dense", label = "Dense landmarks")),
+                    disabled(downloadButton("report", "Download report"))
         ),
-        splitLayout(cellWidths = c("50%", "50%"),
-                    checkboxGroupInput("hpo", label = "Extra phenotype info", choices = "Add HPO terms"),
-                    disabled(downloadButton("report", "Send me the results!"))
-        ),
+        disabled(checkboxGroupInput("compare", label = "", choices = "Make a comparison?")),
         conditionalPanel(condition = "input.compare == 'Make a comparison?'",
                          selectInput("reference", label = "Syndrome", choices = sort(unique(hdrda.df$synd)), selected = "Non-syndromic"), 
                          checkboxInput("displace", label = "Plot displacement vectors?", value = F),
                          conditionalPanel("input.displace == 1",
                                           sliderInput("transparency", label = "Mesh transparency", min = 0, max = 1, step = .1, value = .5)
                          )
-        ),
-        conditionalPanel(condition = "input.hpo == 'Add HPO terms'",
-                         selectInput("hpo_terms", label = "Terms", choices = as.character(hpo$name[names(hpo$name) %in% unique(phenotype_2022$HPO_ID)]), selected = "Pointed chin")
         )
     )
   ),
-  box(title = tags$b("HPO-related info"),
+  box(title = tags$b("Human Phenotype Ontology"),
       width = 6,
       status = "warning",
       solidHeader = T,
       collapsible = T,
       collapsed = T,
-      dataTableOutput('hpo_synds')
+      checkboxGroupInput("hpo", label = "Extra phenotype info", choices = "Add HPO terms"),
+      conditionalPanel(condition = "input.hpo == 'Add HPO terms'",
+                       selectInput("hpo_terms", label = "Terms", choices = c("None", as.character(hpo$name[names(hpo$name) %in% unique(phenotype_2022$HPO_ID)])), selected = "None")
+      ),
+      hr(style = "border-top: 1.2px solid #d3d3d3;"),
+      DTOutput('hpo_synds'),
+      hr(style = "border-top: 1.2px solid #d3d3d3;"),
+      h6("HPO database built from August 2021 release. ",  a("Read more here.", href="https://hpo.jax.org/app/help/introduction"))
   )
 )
 
@@ -257,7 +255,7 @@ server <- function(input, output, session){
     
     par3d(userMatrix = diag(4), zoom = .75)
     bg3d(color = rgb(245/255,245/255,245/255,.9))
-    plot3d(vcgSmooth(mesh.et.lms()[[1]]), col = "#E9C6CB", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
+    plot3d(vcgSmooth(mesh.et.lms()[[1]]), col = "slategrey", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
     #debug: plot3d(vcgSmooth(jovid), col = "#969FB4", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
     
     if(input$dense > 0) points3d(t(mesh.et.lms()[[1]]$vb)[,-4], col = 2, alpha = .5)
@@ -300,10 +298,12 @@ server <- function(input, output, session){
     
   })  
   
-  # observeEvent(is.null(input$file1) == F,
-  #              {
-  #                disable("report")
-  #              })
+  observeEvent(sum(grepl("*.ply", parseFilePaths(volumes, input$file1)$datapath)) > 0,
+               {
+                 enable("dense")
+                 enable("compare")
+                 enable("report")
+               })
   
   #update the priors if given hpo terms
   # new.mod <- eventReactive(input$update_model,{
@@ -315,7 +315,7 @@ server <- function(input, output, session){
     #register landmarks to the space
     registered.mesh <- rotmesh.onto(jovid, t(jovid$vb[-4, sample1k]), synd.mshape[sample1k,], scale = T)$mesh
     new.scores <- data.frame(getPCscores(t(registered.mesh$vb[-4,]), PC.eigenvectors, synd.mshape))
-    print(new.scores)
+    
     #correct submitted face for regression effects
     age.poly <- predict(poly(d.meta$Age,3), newdata = input$age)
     # datamod <- ~ as.numeric("Male" == "Female") + age.poly[1] + age.poly[2] + age.poly[3]
@@ -326,7 +326,7 @@ server <- function(input, output, session){
     colnames(new.adjusted) <- colnames(PC.scores)
     print(new.adjusted)
     print(is.null(input$hpo) | is.null(input$hpo_terms))
-    if(is.null(input$hpo) | is.null(input$hpo_terms)){
+    if(is.null(input$hpo) | is.null(input$hpo_terms) | input$hpo_terms == "None"){
       updated.prediction <- predict(hdrda.mod, newdata = new.adjusted[1,1:80], type = "prob")
     } else{
       
@@ -369,8 +369,9 @@ server <- function(input, output, session){
     return(list(updated.prediction))
   })
   
-  output$hpo_synds <- renderDataTable({
+  output$hpo_synds <- renderDT({
     #full hpo list
+    print(sum(grepl("*.ply", parseFilePaths(volumes, input$file1)$datapath)))
     print(input$hpo_terms)
     phenotype_2022[phenotype_2022$HPO_ID == names(hpo$name)[which(as.character(hpo$name) == input$hpo_terms)], c(2,5,8)]    #just our dataset HPO
     
@@ -425,3 +426,9 @@ server <- function(input, output, session){
 
 #Run app
 shinyApp(ui = ui, server = server)
+
+
+
+
+
+
