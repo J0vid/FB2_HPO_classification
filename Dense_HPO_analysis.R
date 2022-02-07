@@ -236,6 +236,7 @@ for(j in 1:length(unique(hpo.meta[,1]))){
 }
 
 #divide delta posterior results into 7 pages####
+library(grid)
 pdf("results/supp1_pg1.pdf", height = 40, width = 8)
 p <- get(paste0("p", 1))
 for(i in 2:10) p <- rbind(p, get(paste0("p", i)), size = "first")
@@ -318,7 +319,7 @@ hpo.df <- data.frame(orig.sens = original.sens, hpo.perf.full)
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/updated_top1comparison_full.pdf", width = 13, height = 7)
+pdf("results/80PC_top1comparison_full.pdf", width = 13, height = 7)
 ggplot(aes(x = reorder(synd, -orig.sens), y = top1.mean), data = hpo.df) +
   geom_bar(stat = "identity",  fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = top1.min, ymax = top1.max)) +
@@ -335,7 +336,7 @@ dev.off()
 
 #error bars and mixed prevalences####
 #get mean max min sd of sensitivities from 1000 simulated analysis at 50% term prevalence
-load("updated_permuted_results_rank1.Rdata")
+load("80PC_permuted_results_rank1.Rdata")
 permuted.sens <- apply(permuted.results, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
 permuted.mean <- apply(permuted.sens, 1, mean)
 permuted.sd  <- apply(permuted.sens, 1, sd)
@@ -359,7 +360,7 @@ hpo.df <- data.frame(synd = publication.synd.names, orig.sens = original.sens, m
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/updated_top1comparison_prevalence.pdf", width = 12, height = 6)
+pdf("results/80_top1comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -397,7 +398,7 @@ original.sens.rank2 <-  confusionMatrix(factor(rank2.result, levels = levels(hdr
 
 #bind permuted.results with true synd
 permuted.results.rank2 <- permuted.results
-load("C:/Users/David A/Downloads/FB2_HPO_classification/updated_permuted_results_rank2.Rdata")
+load("C:/Users/David A/Downloads/FB2_HPO_classification/80PC_permuted_results_rank2.Rdata")
 permuted.sens3 <- apply(permuted.results.rank2, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
 permuted.mean3 <- apply(permuted.sens3, 1, mean)
 permuted.sd3  <- apply(permuted.sens3, 1, sd)
@@ -410,7 +411,7 @@ hpo.df3 <- data.frame(synd = publication.synd.names, orig.sens = original.sens.r
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/updated_top3comparison_prevalence.pdf", width = 12, height = 6)
+pdf("results/80PC_top3comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df3) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -452,7 +453,7 @@ face.only.rank3 <- rank3.result
 original.sens.rank3 <-  confusionMatrix(factor(rank3.result, levels = levels(hdrda.df$synd)), hdrda.df[,1])$byClass[,1]
 
 #bind permuted.results with true synd
-load("C:/Users/David A/Downloads/FB2_HPO_classification/updated_permuted_results_rank3.Rdata")
+load("C:/Users/David A/Downloads/FB2_HPO_classification/80PC_permuted_results_rank3.Rdata")
 permuted.sens10 <- apply(permuted.results.rank3, 2, function(x) confusionMatrix(factor(x, levels = levels(hdrda.df$synd)), factor(ultimate.bunduru$synd, levels = levels(hdrda.df$synd)))$byClass[,1])
 permuted.mean10 <- apply(permuted.sens10, 1, mean)
 permuted.sd10  <- apply(permuted.sens10, 1, sd)
@@ -466,7 +467,7 @@ hpo.df10 <- data.frame(synd = publication.synd.names, orig.sens = original.sens.
 
 fill <- c("#0F084B", "#3D60A7", "#A0D2E7")
 
-pdf("results/updated_top10comparison_prevalence.pdf", width = 12, height = 6)
+pdf("results/80PC_top10comparison_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -orig.sens), y = mean), data = hpo.df10) +
   geom_bar(stat = "identity", fill = "#3D60A7") + 
   geom_errorbar(aes(ymin = mean - (2*sd), ymax = mean + (2*sd)),  fill = 'black') + 
@@ -493,7 +494,7 @@ hpo.df.combo$rank2[which(is.na(hpo.df.combo$rank2))] <- hpo.df3$orig.sens[which(
 hpo.df.combo$rank3[which(is.na(hpo.df.combo$rank3))] <- hpo.df10$orig.sens[which(is.na(hpo.df.combo$rank3))]
 View(hpo.df.combo)
 
-pdf("results/updated_top1_3_10_prevalence.pdf", width = 12, height = 6)
+pdf("results/80PC_top1_3_10_prevalence.pdf", width = 12, height = 6)
 ggplot(aes(x = reorder(synd, -rank1), y = rank3), data = hpo.df.combo) +
   geom_bar(fill =  "#A0D2E7", stat = "identity") +
   geom_bar(aes(x = synd, y = rank2), fill = "#3D60A7", stat = "identity") +

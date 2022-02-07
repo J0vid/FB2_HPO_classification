@@ -6,8 +6,47 @@ library(caret)
 #restart here if we crash out. load("hpo_results_loocv_full.Rdata")
 #comment out synd.hpo.result, hpo.pred, hpo.distribution, hpo.meta and set 1 to the value we need to pick up at
 
+#match to new HPO database to get better frequency info
+phenotype_2022 <- readr::read_delim("phenotype-2022.hpoa", delim = "\t", escape_double = FALSE, trim_ws = TRUE, skip = 4)
 
-#testing the method with one HPO term at a time with simulated term prevalence####
+#cut down to only physical abnormalities
+phenotype_2022 <- phenotype_2022[phenotype_2022$Aspect == "P", ]
+
+
+#let's define frequencies
+phenotype.df.synd2 <- phenotype_2022[phenotype_2022$DiseaseName %in% official.names, ]
+
+standardized.freqs <- data.frame(synd = phenotype.df.synd2$DiseaseName, term = phenotype.df.synd2$HPO_ID, Frequency = phenotype.df.synd2$Frequency)
+standardized.freqs$Frequency <- as.character(standardized.freqs$Frequency)
+
+standardized.freqs <- data.frame(standardized.freqs[is.na(standardized.freqs$Frequency) == F,])
+
+# how bad is it to throw out NA freqs? 3 synds don't have any frequency info for any terms
+# View(data.frame(table(standardized.freqs$synd[is.na(standardized.freqs$Frequency) == F])))
+
+#for terms with ranges, let's uniformly draw from that range.
+standardized.freqs$Frequency[standardized.freqs$Frequency == "HP:0040280"] <- 1
+standardized.freqs$Frequency[standardized.freqs$Frequency == "HP:0040285"] <- 0
+#deal with fractions: fractions <- grep("/", standardized.freqs$Frequency)
+for(i in grep("/", standardized.freqs$Frequency)) standardized.freqs$Frequency[i] <- eval(parse(text = standardized.freqs$Frequency[i]))
+#deal with percentages: percs <- grep("%", standardized.freqs$Frequency)
+for(i in grep("%", standardized.freqs$Frequency)) standardized.freqs$Frequency[i] <- as.numeric(substr(standardized.freqs$Frequency[i], 1, nchar(standardized.freqs$Frequency[i])-1))/100
+
+# View(standardized.freqs)
+
+#Now a dataframe where we exclusively deal with NA frequencies####
+na.freqs <- data.frame(synd = phenotype.df.synd2$DiseaseName, term = phenotype.df.synd2$HPO_ID, Frequency = phenotype.df.synd2$Frequency)
+na.freqs$Frequency <- as.character(na.freqs$Frequency)
+na.freqs <- data.frame(na.freqs[is.na(na.freqs$Frequency) == T,])
+
+#NAs are defined as .3####
+na.freqs$Frequency[is.na(na.freqs$Frequency)] <- .3
+
+# View(na.freqs)
+
+final.freqs <- rbind.data.frame(standardized.freqs, na.freqs)
+
+#testing the method with one HPO term at a time with 100% term prevalence####
 #for all the people with syndrome i, let's look at the sensitivity with HPO term j
 #how to deal with differing number of terms for each synd? Save only the mean top1,3,10 sens and the min/max, and the number of HPO terms associated
 
@@ -63,8 +102,8 @@ for(i in 1 : length(unique(hdrda.df$synd))){
       posterior.class <- loocv.pred[hdrda.df$synd == levels(hdrda.df$synd)[i]]
       
       for(l in 1:length(updated.posterior.sample)){ #only loop through selected inds
-        hdrda.updated <- hdrda(synd ~ ., data = hdrda.df[-updated.posterior.sample[l],], prior = updated.priors)
-        tmp.updated.pred <- predict(hdrda.updated, newdata = hdrda.df[updated.posterior.sample[l],-1], type = "prob") #what is our pred on the holdout individual given the updated priors 
+        hdrda.updated <- hdrda(synd ~ ., data = hdrda.df[-updated.posterior.sample[l],1:81], prior = updated.priors)
+        tmp.updated.pred <- predict(hdrda.updated, newdata = hdrda.df[updated.posterior.sample[l],2:81], type = "prob") #what is our pred on the holdout individual given the updated priors 
         posterior.class[which(current.synd.index == updated.posterior.sample[l])] <- as.character(tmp.updated.pred$class)
         posterior.distribution[which(current.synd.index == updated.posterior.sample[l]),] <- tmp.updated.pred$posterior
       }
@@ -86,8 +125,8 @@ for(i in 1 : length(unique(hdrda.df$synd))){
     }
     
   }
-  save(synd.hpo.result, hpo.pred, hpo.distribution, hpo.meta, file = "updated_hpo_results_loocv_full.Rdata")
+  save(synd.hpo.result, hpo.pred, hpo.distribution, hpo.meta, file = "hpo_results_loocv_full_80PC.Rdata")
 }
 
-save(synd.hpo.result, hpo.pred, hpo.distribution, hpo.meta, file = "updated_hpo_results_loocv_full.Rdata")
+save(synd.hpo.result, hpo.pred, hpo.distribution, hpo.meta, file = "hpo_results_loocv_full_80PC.Rdata")
 # 
