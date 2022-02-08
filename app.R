@@ -35,18 +35,19 @@ predPC.lm <- function(fit, datamod){
 
 
 body <- dashboardBody(
+  useShinyjs(),
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
   ),
   fluidRow(
-    box(title = tags$b("About this app"),
-        solidHeader = T,
-        status = "warning",
-        collapsible = T,
-        collapsed = T,
-        width = 12,
-        "This application serves as a demonstration of our syndrome classifier. Choose one of the preloaded faces under the [Pick Parameters] tab. The face will be displayed under the [Scan] tab. The [Syndrome Probabilities] tab will show the top ten syndrome probabilities from the classifier. You can compare the individual's facial shape similarity to the average shape of any syndrome by checking the Make a comparison box under the [Pick parameters] tab."
-    ),
+    # box(title = tags$b("About this app"),
+    #     solidHeader = T,
+    #     status = "warning",
+    #     collapsible = T,
+    #     collapsed = T,
+    #     width = 12,
+    #     "This application serves as a demonstration of our syndrome classifier. Choose one of the preloaded faces under the [Pick Parameters] tab. The face will be displayed under the [Scan] tab. The [Syndrome Probabilities] tab will show the top ten syndrome probabilities from the classifier. You can compare the individual's facial shape similarity to the average shape of any syndrome by checking the Make a comparison box under the [Pick parameters] tab."
+    # ),
     box(title = tags$b("Scan"),
         width = 6,
         solidHeader = T,
@@ -106,7 +107,7 @@ body <- dashboardBody(
 # We'll save it in a variable `ui` so that we can preview it in the console
 dbHeader <- dashboardHeader()
 dbHeader$children[[2]]$children <-  tags$a(href='../',
-                                           tags$img(src="uc_logo.png",height='30',width='116'))
+                                           tags$img(src="uc_logo.png", height='30', width='116'))
 ui <- dashboardPage(title = "Classification demo",
                     dbHeader,
                     dashboardSidebar(disable = T),
@@ -118,99 +119,11 @@ server <- function(input, output, session){
   volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
   shinyFileChoose(input, "file1", roots = volumes, session = session)  # by setting `allowDirCreate = FALSE` a user will not be able to create a new directory
   
-  name.key <- c(Apert = 1419, Achondroplasia = 34, Williams = 1702, `Treacher Collins` = 47, Noonan =699, `22q deletion` = 1357, Cockayne = 2423, Nager = 799)
-  # 
-  # outVar <- reactive({
-  #   hpo.terms <- hpo$name[grep(tolower(hpo$name), pattern = tolower(input$hpo_input))]
-  #   hpo.id <- names(hpo.terms)
-  #   hpo.terms <- as.character(hpo.terms)
-  #   return(list(hpo.id, hpo.terms))
-  # })
-  # 
-  # #slow down reactivity of text input
-  # ontology.list <- debounce(outVar, 1200)
-  # 
-  # output$variables <- renderUI({
-  #   selectInput('variables2', 'Associated HPO terms', ontology.list()[[2]], multiple = T)
-  # })
-  
-  # 
-  #   mesh.et.lms <- eventReactive(input$file1, {
-  #   # mesh.et.lms <- reactive({
-  #     # file1 <- name.key[names(name.key) %in% "Nager"]
-  #     file1 <- name.key[names(name.key) %in% input$file1]
-  #     
-  #     file.mesh <- atlas
-  #     synd.mshape <- mean.shape
-  #     file.mesh$vb[-4,] <- t(showPC(as.matrix(hdrda.df[file1, -1]), PC.eigenvectors, synd.mshape)[,,1])
-  # 
-  #     return(list(file.mesh))
-  #   })
-  # 
-  #   output$LM_face <- renderRglwidget({
-  #     
-  #     clear3d()
-  #     bg3d(color = rgb(245/255, 245/255, 245/255, .9))
-  #     
-  #     # par3d(userMatrix = matrix(c(.998,-.005,.0613,0,.0021,.999,.045,0,-.061,-.045,.997,0,0,0,0,1),ncol =4,nrow = 4))
-  #     par3d(userMatrix = diag(4))
-  #     aspect3d("iso")
-  #     par3d(zoom = .7)
-  #     
-  #     sample1k <- sample(1:27903, 1000)
-  #     meshrot <- rotmesh.onto(file.mesh, t(file.mesh$vb[-4, sample1k]), t(atlas$vb[-4, sample1k]))
-  #     meshrot <- rotmesh.onto(mesh.et.lms()[[1]], t(mesh.et.lms()[[1]]$vb[-4, sample1k]), t(atlas$vb[-4, sample1k]))
-  # 
-  #     plot3d(vcgSmooth(meshrot$mesh), col = "lightgrey", alpha = 1, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
-  #     # spheres3d(as.matrix(meshrot$yrot), radius = .75, color = "red")
-  # 
-  #     if(input$dense > 0) points3d(t(meshrot$mesh$vb)[,-4], col = rgb(1, 0, 0), alpha = .1)
-  # 
-  #     if(length(input$compare) > 0){
-  # 
-  #       #find individuals' registered lms
-  #       ind.lms <- matrix(as.numeric(filtered.lms[as.character(filtered.lms[,1]) %in% mesh.et.lms()[[3]],-1:-2]), nrow = 65, byrow = T)
-  # 
-  #       #rotonto atlas
-  #       scaled.lms <- procOPA(mshape(arrayspecs(filtered.lms[,-1:-2], 65, 3)), as.matrix(atlas.lms))$Bhat
-  #       scaled.mesh <- rotmesh.onto(atlas, refmat = as.matrix(atlas.lms), tarmat = as.matrix(scaled.lms), scale = T, reflection = T)
-  # 
-  #       #calculate specified sydrome mean
-  #       syndrome.mean <- matrix(as.numeric(colMeans(filtered.lms[filtered.lms$Syndrome == input$reference,-1:-2])), nrow = 65, byrow = T)
-  #       #tps3d
-  #       clear3d()
-  # 
-  #       # par3d(userMatrix = matrix(c(.998,-.005,.0613,0,.0021,.999,.045,0,-.061,-.045,.997,0,0,0,0,1),ncol =4,nrow = 4))
-  #       par3d(userMatrix = matrix(c(-.017,-.999,-.022,0,-.999,-.016,-.03,0,.03,-.023,.999,0,0,0,0,1),ncol =4,nrow = 4))
-  #       par3d(zoom = .7)
-  # 
-  # 
-  #       synd.mesh <- tps3d(scaled.mesh$mesh, scaled.lms, syndrome.mean)
-  #       ind.mesh <- rotmesh.onto(mesh.et.lms()[[1]], as.matrix(mesh.et.lms()[[2]]), ind.lms, scale = T, reflection = T)$mesh
-  # 
-  #       if(input$displace == F){
-  #         bg3d(color = rgb(245/255, 245/255, 245/255, .9))
-  #         mD.synd <- meshDist(ind.mesh, synd.mesh , plot = F, scaleramp = F, displace = input$displace, alpha = 1)
-  #         a <- render(mD.synd, displace = input$displace, alpha = 1)
-  #       } else if(input$displace){
-  #         bg3d(color = "#1a1a1a")
-  #         mD.synd <- meshDist(ind.mesh, synd.mesh, plot = F, scaleramp = F, displace = input$displace, alpha = input$transparency)
-  #         a <- render(mD.synd, displace = input$displace, alpha = input$transparency)
-  #       }
-  # 
-  #     }
-  #     aspect3d("iso")
-  #     rglwidget()
-  # 
-  #   })
-  
-  
   mesh.et.lms <- eventReactive(input$file1, {
     parsed.file.path <- parseFilePaths(volumes, input$file1)$datapath
     print(parsed.file.path)
     
     file.mesh <- file2mesh(parsed.file.path[grepl("*.ply", parsed.file.path)])
-    print(str(file.mesh))
     # file.name <- substr(input$file1$name, start = 1, stop = nchar(input$file1$name) - 4)
     file.name <- "test"
     
@@ -298,7 +211,7 @@ server <- function(input, output, session){
     
   })  
   
-  observeEvent(sum(grepl("*.ply", parseFilePaths(volumes, input$file1)$datapath)) > 0,
+  observeEvent(input$file1,
                {
                  enable("dense")
                  enable("compare")
@@ -310,10 +223,11 @@ server <- function(input, output, session){
   new.mod <- reactive({
     #project new face in PC space
     new.scores <- getPCscores(t(mesh.et.lms()[[1]]$vb[-4,]), PC.eigenvectors, synd.mshape)
-    jovid <- file2mesh("data/da_reg.ply")
+    # jovid <- file2mesh("data/da_reg.ply")
+    
     sample1k <- sample(1:27903, 500)
     #register landmarks to the space
-    registered.mesh <- rotmesh.onto(jovid, t(jovid$vb[-4, sample1k]), synd.mshape[sample1k,], scale = T)$mesh
+    registered.mesh <- rotmesh.onto(mesh.et.lms()[[1]], t(mesh.et.lms()[[1]]$vb[-4, sample1k]), synd.mshape[sample1k,], scale = T)$mesh
     new.scores <- data.frame(getPCscores(t(registered.mesh$vb[-4,]), PC.eigenvectors, synd.mshape))
     
     #correct submitted face for regression effects
@@ -324,8 +238,7 @@ server <- function(input, output, session){
     
     new.adjusted <- new.scores - expected.values
     colnames(new.adjusted) <- colnames(PC.scores)
-    print(new.adjusted)
-    print(is.null(input$hpo) | is.null(input$hpo_terms))
+    
     if(is.null(input$hpo) | is.null(input$hpo_terms) | input$hpo_terms == "None"){
       updated.prediction <- predict(hdrda.mod, newdata = new.adjusted[1,1:80], type = "prob")
     } else{
@@ -363,7 +276,6 @@ server <- function(input, output, session){
       hdrda.updated <- hdrda(synd ~ ., data = hdrda.df[,1:81], prior = updated.priors)
       updated.prediction <- predict(hdrda.updated, newdata = new.adjusted[1:80], type = "prob") #what is our pred on the holdout individual given the updated priors
       
-      print(input$hpo)
     }
     
     return(list(updated.prediction))
