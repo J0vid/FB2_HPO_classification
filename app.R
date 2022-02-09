@@ -14,6 +14,7 @@ library(RvtkStatismo)
 library(shinyFiles)
 library(mesheR)
 library(DT)
+library(future)
 options(shiny.maxRequestSize=300*1024^2)
 
 
@@ -55,9 +56,11 @@ body <- dashboardBody(
         collapsible = F,
         withSpinner(rglwidgetOutput("submitted_face", width = "auto"), type = 6, color = "#757471"),
         hr(style = "border-top: 1.2px solid #d3d3d3;"),
-        splitLayout(cellWidths = c("30%", "30%"),
-                    numericInput("age", label = "Current age (years)", value = 33, min = .5, max = 80),
-                    selectInput("sex", label = "Sex", choices = c("Female", "Male"), selected = "Male")
+        splitLayout(cellWidths = c("23%", "23%", "23%", "23%"),
+                    numericInput("age", label = "Age (years)", value = 33, min = .5, max = 80),
+                    selectInput("sex", label = "Sex", choices = c("Female", "Male"), selected = "Male"),
+                    numericInput("height", label = "Height (cm)", value = 183, min = 40, max = 250),
+                    numericInput("weight", label = "Weight (kg)", value = 70, min = 2, max = 180)
         ),
         shinyFilesButton("file1", "Upload Files", "Please select a file", multiple = TRUE, viewtype = "detail")
     ),
@@ -65,7 +68,7 @@ body <- dashboardBody(
         status = "warning",
         solidHeader = T,
         collapsible = F,
-        withSpinner(plotlyOutput("diagnosis_scree"), type = 6, color = "#757471")
+        plotlyOutput("diagnosis_scree")
     ),
     box(title = tags$b("Compare & visualize morphology"),
         width = 6,
@@ -92,14 +95,24 @@ body <- dashboardBody(
       solidHeader = T,
       collapsible = T,
       collapsed = T,
-      checkboxGroupInput("hpo", label = "Extra phenotype info", choices = "Add HPO terms"),
-      conditionalPanel(condition = "input.hpo == 'Add HPO terms'",
-                       selectInput("hpo_terms", label = "Terms", choices = c("None", as.character(hpo$name[names(hpo$name) %in% unique(phenotype_2022$HPO_ID)])), selected = "None")
-      ),
+      # checkboxGroupInput("hpo", label = "Extra phenotype info", choices = "Add HPO terms"),
+      # conditionalPanel(condition = "input.hpo == 'Add HPO terms'",
+      selectInput("hpo_terms", label = "Select an HPO term", choices = c("None", as.character(hpo$name[names(hpo$name) %in% unique(phenotype_2022$HPO_ID)])), selected = "None")
+      ,# ),
       hr(style = "border-top: 1.2px solid #d3d3d3;"),
       DTOutput('hpo_synds'),
       hr(style = "border-top: 1.2px solid #d3d3d3;"),
       h6("HPO database built from August 2021 release. ",  a("Read more here.", href="https://hpo.jax.org/app/help/introduction"))
+  ),
+  box(title = tags$b("Auto-HPO"),
+      width = 6,
+      status = "warning",
+      solidHeader = T,
+      collapsible = T,
+      collapsed = T,
+      h4("Below we provide automatically generated HPO suggestions based on the mesh you provided."),
+      hr(style = "border-top: 1.2px solid #d3d3d3;"),
+      DTOutput('auto_hpo')
   )
 )
 
@@ -166,10 +179,10 @@ server <- function(input, output, session){
     pdf(NULL)
     dev.off()
     
-    par3d(userMatrix = diag(4), zoom = .75)
+    par3d(userMatrix = diag(4), zoom = .55)
     bg3d(color = rgb(245/255,245/255,245/255,.9))
-    plot3d(vcgSmooth(mesh.et.lms()[[1]]), col = "slategrey", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
-    #debug: plot3d(vcgSmooth(jovid), col = "#969FB4", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
+    plot3d(vcgSmooth(mesh.et.lms()[[1]]), col = "#757471", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")  
+    # debug: plot3d(vcgSmooth(jovid), col = "#969FB4", axes = F, specular = 1, xlab = "", ylab = "", zlab = "", aspect = "iso")
     
     if(input$dense > 0) points3d(t(mesh.et.lms()[[1]]$vb)[,-4], col = 2, alpha = .5)
     
@@ -211,12 +224,12 @@ server <- function(input, output, session){
     
   })  
   
-  observeEvent(input$file1,
-               {
-                 enable("dense")
-                 enable("compare")
-                 enable("report")
-               })
+  #enable operations contingent on an uploaded mesh
+  observeEvent(input$file1, {
+    enable("dense")
+    enable("compare")
+    enable("report")
+  })
   
   #update the priors if given hpo terms
   # new.mod <- eventReactive(input$update_model,{
@@ -292,20 +305,27 @@ server <- function(input, output, session){
   
   output$diagnosis_scree <- renderPlotly({
     
-    posterior.distribution <- sort(new.mod()[[1]]$posterior, decreasing = T)
+    posterior.distribution <- new.mod()[[1]]$posterior
+    names(posterior.distribution) <- publication.synd.names
+    posterior.distribution <- sort(posterior.distribution, decreasing = T)
     
     #used to be part of plot.df: ID = as.factor(1:10),
     plot.df <- data.frame(Probs = round(as.numeric(posterior.distribution[1:10]), digits = 4), Syndrome = as.factor(gsub("_", " ", names(posterior.distribution[1:10]))))
     plot.df$Syndrome <- as.character(plot.df$Syndrome)
     plot.df$Syndrome[plot.df$Syndrome == "Control"] <- "Non-syndromic"
     
-    plot_ly(data = plot.df, x = ~Syndrome, y = ~Probs, type = "bar", color = I("grey"), hoverinfo = paste0("Syndrome: ", "x", "<br>", "Probability: ", "y")) %>%
+    plot_ly(data = plot.df, x = ~Syndrome, y = ~Probs, type = "bar", color = I("#757471"), hoverinfo = paste0("Syndrome: ", "x", "<br>", "Probability: ", "y")) %>%
       layout(xaxis = list(tickvals = gsub("_", " ", plot.df$Syndrome), tickangle = 45, ticktext = c(Syndrome = plot.df$Syndrome, Probability = plot.df$Probs), title = "<b>Syndrome</b>"),
              yaxis = list(title = "<b>Class probability</b>"),
              paper_bgcolor='rgba(245, 245, 245, .9)',
              margin = list(b = 125, l = 50, r = 100)
       )
   })
+  
+  output$auto_hpo <- renderDT({
+    #what do we want to show? HPO term | ID | ind measurement | how many sds
+    data.frame("Term" = c("Proptosis", "Long face", "Downslanted palpebral fissures"), "ID" = c("HP:0000520","HP:0000276", "HP:0000494"), "Value" = c(6,.9, 4), "SD" = c(2.5,.5, 1.5))
+  }, options = list(pageLength = 5, autoWidth = F, scrollX = T))
   
   
   # #report generator
@@ -335,12 +355,6 @@ server <- function(input, output, session){
   
 }
 
-
 #Run app
 shinyApp(ui = ui, server = server)
-
-
-
-
-
 
