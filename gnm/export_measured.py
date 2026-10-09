@@ -12,7 +12,7 @@ import pandas as pd
 
 REF = Path("/Users/jovid/Documents/Hallgrimsson/gnm_reference")
 OUT = Path("/Users/jovid/Documents/Hallgrimsson/gnm_classifier")
-sys.path.insert(0, str(REF / "code"))
+sys.path.insert(0, "/Volumes/dawei/PhenomicsLabs/hpo_atlas_gnm")  # conversion code, PhenomicsLabs repo
 from gnm_compact import load_subjects  # noqa: E402
 
 qc = pd.read_csv(REF / "qc.csv")
