@@ -32,7 +32,10 @@ for(k in 1:1000){
       hpo.prevalence <- as.numeric(hpo.prevalence)
       
       tmp.prevalence <- sample(1:length(tmp.hpo.pred), length(tmp.hpo.pred) * hpo.prevalence)
-      tmp.hpo.pred[tmp.prevalence] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
+      # individuals sampled at the term's prevalence have the term and keep the HPO-assisted prediction;
+      # everyone else falls back to the face-only prediction (previously inverted: the sampled set got face-only)
+      no.term <- setdiff(seq_along(tmp.hpo.pred), tmp.prevalence)
+      tmp.hpo.pred[no.term] <- loocv.pred[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][no.term]
       sim.synd.hpo.results <- c(sim.synd.hpo.results, tmp.hpo.pred)
     }
   }
@@ -90,7 +93,9 @@ for(k in 1:1000){
       hpo.prevalence <- as.numeric(hpo.prevalence)
       
       tmp.prevalence <- sample(1:length(rank2.check), length(rank2.check) * hpo.prevalence)
-      rank2.check[tmp.prevalence] <- face.only.rank2[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
+      # term carriers keep the HPO-assisted result; the rest fall back to face-only (previously inverted)
+      no.term <- setdiff(seq_along(rank2.check), tmp.prevalence)
+      rank2.check[no.term] <- face.only.rank2[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][no.term]
       sim.synd.hpo.results <- c(sim.synd.hpo.results, rank2.check)
     }
   }
@@ -157,7 +162,9 @@ for(k in 1:1000){
       hpo.prevalence <- as.numeric(hpo.prevalence)
       
       tmp.prevalence <- sample(1:length(rank3.check), length(rank3.check) * hpo.prevalence)
-      rank3.check[tmp.prevalence] <- face.only.rank3[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][tmp.prevalence]
+      # term carriers keep the HPO-assisted result; the rest fall back to face-only (previously inverted)
+      no.term <- setdiff(seq_along(rank3.check), tmp.prevalence)
+      rank3.check[no.term] <- face.only.rank3[hdrda.df$synd == unique(ultimate.bunduru$synd)[i]][no.term]
       sim.synd.hpo.results <- c(sim.synd.hpo.results, rank3.check)
     }
     
